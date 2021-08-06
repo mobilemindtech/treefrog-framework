@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-2019, AOYAMA Kazuharu
+src/tsqlobject.cpp/* Copyright (c) 2010-2019, AOYAMA Kazuharu
  * All rights reserved.
  *
  * This software may be used and distributed according to the terms of
@@ -303,8 +303,7 @@ bool TSqlObject::update()
         QVariant newval = QObject::property(propName);
         QVariant recval = QSqlRecord::value(QLatin1String(propName));
         if (i != pkidx && recval.isValid() && recval != newval) {
-            upd.append(TSqlQuery::escapeIdentifier(QLatin1String(propName), QSqlDriver::FieldName, database.driver()));
-            upd.append(QLatin1Char('='));
+            upd.append(TSqlQuery::escapeIdentifier(QLatin1String(propName), QSqlDriver::FieldName, database.driver()));            upd.append(QLatin1Char('='));
 #if QT_VERSION < 0x060000
             upd.append(TSqlQuery::formatValue(newval, metaProp.type(), database));
 #else
