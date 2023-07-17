@@ -29,12 +29,13 @@ public:
     const TActionContext *context() const { return _context; }
     TActionContext *context() { return _context; }
     void setContext(TActionContext *context) { _context = context; }
+    static QThread *currentThread() { return QThread::currentThread(); }
 
 protected:
     virtual TSession &session();
     virtual bool addCookie(const TCookie &cookie);
     virtual bool addCookie(const QByteArray &name, const QByteArray &value, const QDateTime &expire = QDateTime(), const QString &path = QString(), const QString &domain = QString(), bool secure = false, bool httpOnly = false, const QByteArray &sameSite = "Lax");
-    virtual bool addCookie(const QByteArray &name, const QByteArray &value, qint64 maxAge, const QString &path = QString(), const QString &domain = QString(), bool secure = false, bool httpOnly = false, const QByteArray &sameSite = "Lax");
+    virtual bool addCookie(const QByteArray &name, const QByteArray &value, int64_t maxAge, const QString &path = QString(), const QString &domain = QString(), bool secure = false, bool httpOnly = false, const QByteArray &sameSite = "Lax");
     virtual void reset() { }
 
     QVariant variant(const QString &name) const;
