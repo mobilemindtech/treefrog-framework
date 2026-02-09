@@ -1,5 +1,33 @@
 # ChangeLog
 
+## 2.11.2
+ - Updated the internally used MongoDB C Driver to version 2.1.0.
+ - Added support for std::format style formatting in logging functions.
+
+## 2.11.1
+ - Fixed a compilation error bug in tftest.h.
+ - Updated test macros.
+
+## 2.11.0
+ - Vite + Vue scaffolding support (experimental).
+ - Fix a bug of TSharedMemory on macos.
+
+## 2.10.0
+ - Supported for std::format style log output, Tf::error(), Tf::warn(), Tf::info(), etc.
+ - Fix a bug of tsharedmemory initiation.
+ - Only Qt6 supported after this version (Qt5 not supported).
+
+## 2.9.0
+ - Fix a bug in the access log output regarding status codes.
+ - Modified to set NULL into DB when the value is QString() in TSqlObject.
+ - Added a function, TAbstractModel::setProperties(const QJsonObject &properties).
+ - Updated mongoc driver to v1.26.2.
+ - Updated glog to v0.7.0.
+
+## 2.8.0
+ - Support prepared statements for PostgreSQL and MySQL.
+ - Fix compilation error on Emscripten.
+
 ## 2.7.1
  - Fix a bug of opening shared memory KVS.
  - Modified to reply NotFound when it can not invoke the action.

@@ -161,13 +161,19 @@ QJsonObject TAbstractModel::toJsonObject(const QStringList &properties) const
 /*!
   Sets the \a properties.
  */
+void TAbstractModel::setProperties(const QJsonObject &properties)
+{
+    setProperties(properties.toVariantMap());
+}
+
+/*!
+  Sets the \a properties.
+ */
 void TAbstractModel::setProperties(const QJsonDocument &properties)
 {
     setProperties(properties.object().toVariantMap());
 }
 
-
-#if QT_VERSION >= 0x050c00  // 5.12.0
 
 /*!
   Converts all the properies to CBOR using QCborValue::fromVariant() and
@@ -177,7 +183,7 @@ QCborMap TAbstractModel::toCborMap(const QStringList &properties) const
 {
     return QCborMap::fromVariantMap(toVariantMap(properties));
 }
-#endif
+
 
 
 /*!

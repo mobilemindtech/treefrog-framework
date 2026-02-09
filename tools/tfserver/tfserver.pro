@@ -5,16 +5,15 @@ CONFIG  += console
 CONFIG  -= app_bundle
 QT      += network sql xml qml
 QT      -= gui
-lessThan(QT_MAJOR_VERSION, 6) {
-  CONFIG += c++14
-  windows:QMAKE_CXXFLAGS += /std:c++14
-} else {
-  CONFIG += c++17
-  windows:QMAKE_CXXFLAGS += /Zc:__cplusplus /std:c++17 /permissive-
-}
+MOC_DIR = .obj/
+OBJECTS_DIR = .obj/
+
+# C++ Standards Support
+CONFIG += c++20
+windows:QMAKE_CXXFLAGS += /Zc:__cplusplus /std:c++20 /permissive-
 
 DEFINES *= QT_USE_QSTRINGBUILDER
-DEFINES += TF_DLL
+DEFINES += TF_DLL GLOG_USE_GLOG_EXPORT
 INCLUDEPATH += $$header.path
 
 include(../../tfbase.pri)
@@ -31,7 +30,7 @@ windows {
   # for windows
   CONFIG(debug, debug|release) {
     TARGET = $$join(TARGET,,,d)
-    LIBS += -ltreefrogd$${TF_VER_MAJ} ../../3rdparty/glog/build/Debug/glogd.lib
+    LIBS += -ltreefrogd$${TF_VER_MAJ} ../../3rdparty/glog/build/Debug/glogd.lib dbghelp.lib
   } else {
     LIBS += -ltreefrog$${TF_VER_MAJ}
   }

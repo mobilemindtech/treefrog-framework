@@ -83,16 +83,13 @@ TSharedMemoryKvs::~TSharedMemoryKvs()
 */
 bool TSharedMemoryKvs::initialize(const QString &name, const QString &options)
 {
-    hash_header_t hashheader;
-
     TSharedMemoryKvsDriver::initialize(name, options);
     TSharedMemoryKvsDriver driver;
-    driver.open(name, QString(), QString(), QString(), 0, options);
-    hash_header_t *header = (hash_header_t *)driver.origin();
 
-    void *ptr = driver.malloc(sizeof(hashheader));
-    Q_ASSERT(ptr == header);
-    std::memcpy(header, &hashheader, sizeof(hashheader));
+    driver.open(name, QString(), QString(), QString(), 0, options);
+    void *ptr = driver.malloc(sizeof(hash_header_t));
+    hash_header_t *header = new (ptr) hash_header_t{};  // Initialize with the default constructor
+    Q_ASSERT(header == (hash_header_t *)driver.origin());
     ptr = driver.calloc(header->tableSize, sizeof(uintptr_t));
     header->setHashg(ptr);
     Q_ASSERT(ptr);
@@ -156,7 +153,7 @@ bool TSharedMemoryKvs::set(const QByteArray &key, const QByteArray &value, int s
         // Inserts data
         void *newbucket = driver()->malloc(data.size());
         if (!newbucket) {
-            tError("Not enough space/cannot allocate memory.  errno:%d", errno);
+            Tf::error("Not enough space/cannot allocate memory.  errno:{}", errno);
             break;
         }
 
@@ -579,3 +576,9 @@ void TSharedMemoryKvs::WriteLockingIterator::remove()
     }
     _tmpbk.clear();
 }
+
+
+/*!
+  \class TSharedMemoryKvs::Bucket
+  \brief The Bucket class represents a data bucket for the in-memory KVS.
+*/

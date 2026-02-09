@@ -14,6 +14,7 @@ insert_final_newline = true
 
 [*.pro]
 indent_size = 2
+end_of_line = unset
 
 [Makefile]
 indent_style = tab
@@ -32,9 +33,6 @@ end_of_line = crlf
 [*.md]
 indent_size = 2
 trim_trailing_whitespace = false
-
-[*.wxs]
-end_of_line = crlf
 
 [CMakeLists.txt]
 end_of_line = crlf

@@ -108,24 +108,18 @@ constexpr auto SERVICE_SOURCE_FILE_TEMPLATE = "#include \"%name%service.h\"\n"
                                               "}\n"
                                               "\n";
 
-class ErrorValue : public QHash<int, QString> {
-public:
-    ErrorValue() :
-        QHash<int, QString>()
-    {
-        insert(QMetaType::Int, "-1");
-        insert(QMetaType::UInt, "-1");
-        insert(QMetaType::LongLong, "-1");
-        insert(QMetaType::ULongLong, "-1");
-        insert(QMetaType::Double, "-1");
-        insert(QMetaType::QByteArray, "QByteArray()");
-        insert(QMetaType::QString, "QString()");
-        insert(QMetaType::QDate, "QDate()");
-        insert(QMetaType::QTime, "QTime()");
-        insert(QMetaType::QDateTime, "QDateTime()");
-    }
+const QMap<int, QString> errorValue = {
+    {QMetaType::Int, "-1"},
+    {QMetaType::UInt, "-1"},
+    {QMetaType::LongLong, "-1"},
+    {QMetaType::ULongLong, "-1"},
+    {QMetaType::Double, "-1"},
+    {QMetaType::QByteArray, "QByteArray()"},
+    {QMetaType::QString, "QString()"},
+    {QMetaType::QDate, "QDate()"},
+    {QMetaType::QTime, "QTime()"},
+    {QMetaType::QDateTime, "QDateTime()"},
 };
-Q_GLOBAL_STATIC(ErrorValue, errorValue)
 
 
 ServiceGenerator::ServiceGenerator(const QString &service, const QList<QPair<QString, QMetaType::Type>> &fields, int pkIdx, int lockRevIdx) :
@@ -171,15 +165,11 @@ bool ServiceGenerator::generate(const QString &dstDir) const
         {"varname", varName},
         {"arg", ModelGenerator::createParam(pair.second, pair.first)},
         {"id", fieldNameToVariableName(pair.first)},
-    #if QT_VERSION < 0x060000
-        {"type", QString::fromLatin1(QMetaType::typeName(pair.second))},
-    #else
         {"type", QString::fromLatin1(QMetaType(pair.second).name())},
-    #endif
         {"code1", sessInsertStr},
         {"code2", sessGetStr},
         {"rev", revStr},
-        {"erres", errorValue()->value(pair.second)},
+        {"erres", errorValue.value(pair.second)},
     };
 
     // Generates a service header file

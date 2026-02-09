@@ -7,6 +7,7 @@
 
 //
 // リリースする際は50行目を編集！
+// app.rcのIDR_TREEFROG_QTxxx_MSIも修正！
 //
 
 
@@ -28,18 +29,17 @@ namespace treefrogsetup {
     /// <summary>
     /// MainForm class
     /// </summary>
-    public ref class MainForm : public System::Windows::Forms::Form
-    {
-    private: String^ msiName;
-    private: System::Windows::Forms::Button^  browseButton;
-    private: System::Windows::Forms::Button^  okButton;
-    private: System::Windows::Forms::Button^  cancelButton;
-    private: System::Windows::Forms::TextBox^  forderTextBox;
-    private: System::Windows::Forms::Label^  labeltop;
-    private: System::Windows::Forms::Label^  label;
-    private: System::Windows::Forms::Label^  label1;
-    private: System::Windows::Forms::PictureBox^  loadingImg;
-    private: System::ComponentModel::BackgroundWorker^  bgWorker;
+	public ref class MainForm : public System::Windows::Forms::Form {
+		private: String^ msiName;
+		private: System::Windows::Forms::Button^  browseButton;
+		private: System::Windows::Forms::Button^  okButton;
+		private: System::Windows::Forms::Button^  cancelButton;
+		private: System::Windows::Forms::TextBox^  forderTextBox;
+		private: System::Windows::Forms::Label^  labeltop;
+		private: System::Windows::Forms::Label^  label;
+		private: System::Windows::Forms::Label^  label1;
+		private: System::Windows::Forms::PictureBox^  loadingImg;
+		private: System::ComponentModel::BackgroundWorker^  bgWorker;
 
     private: 
         static initonly String^ TF_ENV_BAT = "C:\\TreeFrog\\" + VersionString() + "\\bin\\tfenv.bat";  // Base Directory
@@ -47,11 +47,11 @@ namespace treefrogsetup {
         //
         // バージョン
         //
-        static initonly String^ VERSION_STR6_NEW  = L"6.4";
-        static initonly String^ VERSION_STR6_PREV = L"6.3";
+        static initonly String^ VERSION_STR6_NEW  = L"6.9";
+        static initonly String^ VERSION_STR6_PREV = L"6.8";
 
-		static initonly int RCID_NEW  = IDR_TREEFROG_QT604_MSI;
-		static initonly int RCID_PREV = IDR_TREEFROG_QT603_MSI;
+        static initonly int RCID_NEW  = IDR_TREEFROG_QT609_MSI;
+        static initonly int RCID_PREV = IDR_TREEFROG_QT608_MSI;
 
     public:
         MainForm(void)
@@ -65,25 +65,6 @@ namespace treefrogsetup {
 
             this->Text = "TreeFrog Framework " + VersionString() + " Setup";
             String^ folder = L"C:\\Qt";
-
-            //try {
-            //    // Check Qt5 Folder
-            //    String^ fol = L"C:\\Qt";
-            //    array<String^>^ dir = Directory::GetDirectories(fol);
-
-            //    if (dir->Length > 0) {
-            //        fol = dir[0];
-            //        for (int i = 1; i < dir->Length; ++i) {
-            //            if (dir[i]->IndexOf("creator", StringComparison::OrdinalIgnoreCase) < 0) {
-            //                fol = (String::Compare(fol, dir[i]) >= 0) ? fol : dir[i];
-            //            }
-            //        }
-            //        folder = fol;
-            //    }
-            //} catch (...) {
-            //    //
-            //}
-
             forderTextBox->Text = folder;
         }
 
@@ -183,7 +164,7 @@ namespace treefrogsetup {
             this->label1->Name = L"label1";
             this->label1->Size = System::Drawing::Size(162, 15);
             this->label1->TabIndex = 5;
-            this->label1->Text = L"Example:  C:\\Qt\\" + VERSION_STR6_NEW + ".0\\msvc2019_64";
+            this->label1->Text = L"Example:  C:\\Qt\\" + VERSION_STR6_NEW + ".0\\msvc2022_64";
             // 
             // labeltop
             // 
@@ -348,7 +329,6 @@ namespace treefrogsetup {
             List<String ^>^ bins = gcnew List<String ^>();
 
             if (forderTextBox->Text != L"C:\\") {
-                //bins->AddRange(searchSubDirectories(L"bin", searchSubDirectories(L"mingw*", forderTextBox->Text, excludes), excludes));
                 bins->AddRange(searchSubDirectories(L"bin", searchSubDirectories(L"msvc20*", forderTextBox->Text, excludes), excludes));
 
                 // Qt 5.9 or later
@@ -454,26 +434,6 @@ namespace treefrogsetup {
                     return;
                 }
 
-                //// Edits tfenv.bat
-                //IO::FileInfo^ fibat = gcnew IO::FileInfo(TF_ENV_BAT);
-                //if (proc->ExitCode == 0 && fibat->Exists) {
-                //    String^ out;
-
-                //    StreamReader^ din = File::OpenText(TF_ENV_BAT);
-                //    String^ line;
-                //    while ((line = din->ReadLine()) != nullptr) {
-                //        if (line->StartsWith("set PATH=")) {
-                //            line = L"set PATH=%TFDIR%\\bin;" + qtbin + "%PATH%";
-                //        }
-                //        out += line + "\r\n";
-                //    }
-                //    din->Close();
-
-                //    StreamWriter^ dout = gcnew StreamWriter(TF_ENV_BAT);
-                //    dout->Write(out);
-                //    dout->Close();
-                //}
-
                 // Edits tfenv.bat
                 IO::FileInfo^ fibat = gcnew IO::FileInfo(TF_ENV_BAT);
                 if (proc->ExitCode == 0 && fibat->Exists) {
@@ -514,5 +474,5 @@ namespace treefrogsetup {
         {
             Application::Exit();
         }
-};
+	};
 }

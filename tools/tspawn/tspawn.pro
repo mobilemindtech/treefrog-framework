@@ -5,13 +5,12 @@ CONFIG  += console
 CONFIG  -= app_bundle
 QT      += sql
 QT      -= gui
-lessThan(QT_MAJOR_VERSION, 6) {
-  CONFIG += c++14
-  windows:QMAKE_CXXFLAGS += /std:c++14
-} else {
-  CONFIG += c++17
-  windows:QMAKE_CXXFLAGS += /Zc:__cplusplus /std:c++17 /permissive-
-}
+MOC_DIR = .obj/
+OBJECTS_DIR = .obj/
+
+# C++ Standards Support
+CONFIG += c++20
+windows:QMAKE_CXXFLAGS += /Zc:__cplusplus /std:c++20 /permissive-
 
 DEFINES *= QT_USE_QSTRINGBUILDER
 DEFINES += TF_DLL
@@ -88,27 +87,14 @@ defaults.files += defaults/CMakeLists.txt
 defaults.files += defaults/CacheClean.cmake
 defaults.files += defaults/TargetCmake.cmake
 defaults.path   = $${datadir}/defaults
-lessThan(QT_MAJOR_VERSION, 6) {
-  # Qt5
-  defaults_controllers.files += defaults/controllers_qt5/CMakeLists.txt
-  defaults_controllers.path   = $${datadir}/defaults/controllers
-  defaults_models.files += defaults/models_qt5/CMakeLists.txt
-  defaults_models.path   = $${datadir}/defaults/models
-  defaults_views.files += defaults/views_qt5/CMakeLists.txt
-  defaults_views.path   = $${datadir}/defaults/views
-  defaults_helpers.files += defaults/helpers_qt5/CMakeLists.txt
-  defaults_helpers.path   = $${datadir}/defaults/helpers
-} else {
-  # Qt6
-  defaults_controllers.files += defaults/controllers/CMakeLists.txt
-  defaults_controllers.path   = $${datadir}/defaults/controllers
-  defaults_models.files += defaults/models/CMakeLists.txt
-  defaults_models.path   = $${datadir}/defaults/models
-  defaults_views.files += defaults/views/CMakeLists.txt
-  defaults_views.path   = $${datadir}/defaults/views
-  defaults_helpers.files += defaults/helpers/CMakeLists.txt
-  defaults_helpers.path   = $${datadir}/defaults/helpers
-}
+defaults_controllers.files += defaults/controllers/CMakeLists.txt
+defaults_controllers.path   = $${datadir}/defaults/controllers
+defaults_models.files += defaults/models/CMakeLists.txt
+defaults_models.path   = $${datadir}/defaults/models
+defaults_views.files += defaults/views/CMakeLists.txt
+defaults_views.path   = $${datadir}/defaults/views
+defaults_helpers.files += defaults/helpers/CMakeLists.txt
+defaults_helpers.path   = $${datadir}/defaults/helpers
 
 windows {
   defaults.files += defaults/_dummymodel.h
@@ -123,12 +109,19 @@ INSTALLS += target defaults defaults_controllers defaults_models defaults_views 
 windows {
   contains(QMAKE_TARGET.arch, x86_64) {
     clientlib.files += ../../3rdparty/clientlib/win64/COPYING_3RD_PARTY_DLL
-    clientlib.files += ../../3rdparty/clientlib/win64/libeay32.dll
-    clientlib.files += ../../3rdparty/clientlib/win64/libintl-8.dll
+    # MariaDB
     clientlib.files += ../../3rdparty/clientlib/win64/libmariadb.dll
+    # MySQL
     clientlib.files += ../../3rdparty/clientlib/win64/libmysql.dll
+    # PostgreSQL
     clientlib.files += ../../3rdparty/clientlib/win64/libpq.dll
-    clientlib.files += ../../3rdparty/clientlib/win64/ssleay32.dll
+    clientlib.files += ../../3rdparty/clientlib/win64/libcrypto-3-x64.dll
+    clientlib.files += ../../3rdparty/clientlib/win64/libiconv-2.dll
+    clientlib.files += ../../3rdparty/clientlib/win64/libssl-3-x64.dll
+    clientlib.files += ../../3rdparty/clientlib/win64/libintl-9.dll
+    clientlib.files += ../../3rdparty/clientlib/win64/libwinpthread-1.dll
+    # Mimer SQL
+    clientlib.files += ../../3rdparty/clientlib/win64/mimapi64.dll
   } else {
     clientlib.files += ../../3rdparty/clientlib/win32/COPYING_3RD_PARTY_DLL
     clientlib.files += ../../3rdparty/clientlib/win32/intl.dll
@@ -193,6 +186,10 @@ HEADERS += vueservicegenerator.h
 SOURCES += vueservicegenerator.cpp
 HEADERS += vueerbgenerator.h
 SOURCES += vueerbgenerator.cpp
+HEADERS += vitevuegenerator.h
+SOURCES += vitevuegenerator.cpp
+HEADERS += vitevueservicegenerator.h
+SOURCES += vitevueservicegenerator.cpp
 HEADERS += abstractobjgenerator.h
 SOURCES += abstractobjgenerator.cpp
 HEADERS += sqlobjgenerator.h
@@ -219,3 +216,4 @@ HEADERS += apiservicegenerator.h
 SOURCES += apiservicegenerator.cpp
 HEADERS += util.h
 SOURCES += util.cpp
+HEADERS += generator.h

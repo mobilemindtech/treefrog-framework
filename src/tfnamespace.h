@@ -137,19 +137,19 @@ enum SortOrder {
 
 enum AppAttribute {
     ListenPort = 0,
-    InternalEncoding,
-    HttpOutputEncoding,
-    Locale,
-    MultiProcessingModule,
-    UploadTemporaryDirectory,
-    SqlDatabaseSettingsFiles,
-    MongoDbSettingsFile,
-    RedisSettingsFile,
-    MemcachedSettingsFile,
-    SqlQueriesStoredDirectory,
-    DirectViewRenderMode,
-    SqlQueryLogFile,  // Deprecated
-    ApplicationAbortOnFatal,
+    InternalEncoding = 1,
+    HttpOutputEncoding = 2,
+    Locale = 3,
+    MultiProcessingModule = 4,
+    UploadTemporaryDirectory = 5,
+    SqlDatabaseSettingsFiles = 6,
+    MongoDbSettingsFile = 7,
+    RedisSettingsFile = 8,
+    MemcachedSettingsFile = 9,
+    SqlQueriesStoredDirectory = 10,
+    DirectViewRenderMode = 11,
+    // SqlQueryLogFile = 12,  // Deprecated
+    ApplicationAbortOnFatal = 13,
     LimitRequestBody,
     EnableCsrfProtectionModule,
     EnableHttpMethodOverride,
@@ -252,13 +252,10 @@ enum class SocketState : int {
 };
 
 
-#if QT_VERSION >= 0x050e00  // 5.14.0
 constexpr auto KeepEmptyParts = Qt::KeepEmptyParts;
 constexpr auto SkipEmptyParts = Qt::SkipEmptyParts;
-#else
-constexpr auto KeepEmptyParts = QString::KeepEmptyParts;
-constexpr auto SkipEmptyParts = QString::SkipEmptyParts;
-#endif
+constexpr auto ReadOnly  = QIODeviceBase::ReadOnly;
+constexpr auto WriteOnly = QIODeviceBase::WriteOnly;
 } // namespace Tf
 
 

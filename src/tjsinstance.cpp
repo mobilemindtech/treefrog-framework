@@ -49,8 +49,8 @@ QJSValue TJSInstance::call(const QString &method, const QJSValue &arg)
 QJSValue TJSInstance::call(const QString &method, const QJSValueList &args)
 {
     if (isError()) {
-        tSystemError("Uncaught exception at line %d : %s", property("lineNumber").toInt(),
-            qUtf8Printable(toString()));
+        tSystemError("Uncaught exception at line {} : {}", property("lineNumber").toInt(),
+            toString());
         return QJSValue();
     }
 

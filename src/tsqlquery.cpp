@@ -6,12 +6,14 @@
  */
 
 #include "tsystemglobal.h"
-#include <QMap>
-#include <QMutex>
-#include <QMutexLocker>
+#include "tsqldatabase.h"
+#include "tsqldriverextension.h"
 #include <TAppSettings>
 #include <TSqlQuery>
 #include <TWebApplication>
+#include <QMap>
+#include <QMutex>
+#include <QMutexLocker>
 
 namespace {
 QMap<QString, QString> queryCache;
@@ -31,12 +33,14 @@ QMutex cacheMutex;
 TSqlQuery::TSqlQuery(int databaseId) :
     QSqlQuery(QString(), Tf::currentSqlDatabase(databaseId))
 {
+    _connectionName = Tf::currentSqlDatabase(databaseId).connectionName();
 }
 
 
 TSqlQuery::TSqlQuery(const QSqlDatabase &db) :
     QSqlQuery(db)
 {
+    _connectionName = db.connectionName();
 }
 
 
@@ -54,11 +58,11 @@ bool TSqlQuery::load(const QString &filename)
 
     QDir dir(queryDirPath());
     QFile file(dir.filePath(filename));
-    tSystemDebug("SQL_QUERY_ROOT: %s", qUtf8Printable(dir.dirName()));
-    tSystemDebug("filename: %s", qUtf8Printable(file.fileName()));
+    tSystemDebug("SQL_QUERY_ROOT: {}", dir.dirName());
+    tSystemDebug("filename: {}", file.fileName());
 
     if (!file.open(QIODevice::ReadOnly)) {
-        tSystemError("Unable to open file: %s", qUtf8Printable(file.fileName()));
+        tSystemError("Unable to open file: {}", file.fileName());
         return false;
     }
 
@@ -118,32 +122,16 @@ QString TSqlQuery::escapeIdentifier(const QString &identifier, QSqlDriver::Ident
   Returns a string representation of the value \a val for the database
   \a databaseId.
 */
-#if QT_VERSION < 0x060000
-QString TSqlQuery::formatValue(const QVariant &val, QVariant::Type type, int databaseId)
-#else
 QString TSqlQuery::formatValue(const QVariant &val, const QMetaType &type, int databaseId)
-#endif
 {
-    return formatValue(val, type, Tf::currentSqlDatabase(databaseId));
+    return formatValue(val, type, Tf::currentSqlDatabase(databaseId).driver());
 }
 
 /*!
   Returns a string representation of the value \a val for the database
   \a database.
 */
-#if QT_VERSION < 0x060000
-QString TSqlQuery::formatValue(const QVariant &val, QVariant::Type type, const QSqlDatabase &database)
-{
-    if (Q_UNLIKELY(type == QVariant::Invalid)) {
-        type = val.type();
-    }
-
-    QSqlField field(QStringLiteral("dummy"), type);
-    field.setValue(val);
-    return database.driver()->formatValue(field);
-}
-#else
-QString TSqlQuery::formatValue(const QVariant &val, const QMetaType &type, const QSqlDatabase &database)
+QString TSqlQuery::formatValue(const QVariant &val, const QMetaType &type, const QSqlDriver *driver)
 {
     QMetaType metaType = type;
     if (Q_UNLIKELY(!metaType.isValid())) {
@@ -153,24 +141,38 @@ QString TSqlQuery::formatValue(const QVariant &val, const QMetaType &type, const
     QSqlField field(QStringLiteral("dummy"), metaType);
     if (type.id() == QMetaType::Char || type.id() == QMetaType::UChar) {
         field.setValue(val.toInt());  // forced cast to int
+    } else if (type.id() == QMetaType::QString) {
+        QString str = val.toString();
+        if (str.isNull()) {
+            field.clear();  // sets it to NULL
+        } else {
+            field.setValue(val);
+        }
+    } else if (type.id() == QMetaType::QDateTime) {
+        QDateTime dt = val.toDateTime();
+        if (dt.isNull() || !dt.isValid()) {
+            field.clear();  // sets it to NULL
+        } else {
+            field.setValue(val);
+        }
     } else {
         field.setValue(val);
     }
-    return database.driver()->formatValue(field);
+    return driver->formatValue(field);
 }
-#endif
+
+QString TSqlQuery::formatValue(const QVariant &val, const QMetaType &type, const QSqlDatabase &database)
+{
+    return formatValue(val, type, database.driver());
+}
 
 /*!
   Returns a string representation of the value \a val for the database
   \a database.
 */
-QString TSqlQuery::formatValue(const QVariant &val, const QSqlDatabase &database)
+QString TSqlQuery::formatValue(const QVariant &val, const QSqlDriver *driver)
 {
-#if QT_VERSION < 0x060000
-    return formatValue(val, val.type(), database);
-#else
-    return formatValue(val, val.metaType(), database);
-#endif
+    return formatValue(val, val.metaType(), driver);
 }
 
 /*!
@@ -180,9 +182,20 @@ TSqlQuery &TSqlQuery::prepare(const QString &query)
 {
     QElapsedTimer time;
     time.start();
-    bool ret = QSqlQuery::prepare(query);
-    if (!ret) {
-        Tf::writeQueryLog(QLatin1String("(Query prepare) ") + query, ret, lastError(), time.elapsed());
+    const auto &db = TSqlDatabase::database(_connectionName);
+    bool res = false;
+
+    if (db.isPreparedStatementSupported()) {
+        QString statement = db.driverExtension()->prepareStatement(query);
+        if (!statement.isEmpty()) {
+            res = QSqlQuery::exec(statement);
+            Tf::writeQueryLog(executedQuery(), res, lastError(), time.elapsed());
+        }
+    } else {
+        res = QSqlQuery::prepare(query);
+        if (!res) {
+            Tf::writeQueryLog(QLatin1String("(Query prepare) ") + query, res, lastError(), time.elapsed());
+        }
     }
     return *this;
 }
@@ -206,32 +219,119 @@ bool TSqlQuery::exec(const QString &query)
 */
 bool TSqlQuery::exec()
 {
+    bool ret = false;
     QElapsedTimer time;
     time.start();
-    bool ret = QSqlQuery::exec();
-    Tf::writeQueryLog(executedQuery(), ret, lastError(), time.elapsed());
+    const auto &db = TSqlDatabase::database(_connectionName);
+
+    if (db.isPreparedStatementSupported()) {
+        QString statement = db.driverExtension()->executeStatement(_boundValues);
+        _boundValues.clear();
+        if (!statement.isEmpty()) {
+            ret = QSqlQuery::exec(statement);
+            Tf::writeQueryLog(executedQuery(), ret, lastError(), time.elapsed());
+        } else {
+            Tf::error("Unable to execute prepared query.");
+        }
+    } else {
+        ret = QSqlQuery::exec();
+        QString msg = executedQuery();
+        QVariantList values = boundValues();
+        if (!values.isEmpty()) {
+            msg += QLatin1String("  -- ");
+            for (auto &val : values) {
+                msg += QChar('`');
+                msg += val.toString();
+                msg += QLatin1String("`, ");
+            }
+            msg.chop(2);
+        }
+        Tf::writeQueryLog(msg, ret, lastError(), time.elapsed());
+    }
+
     return ret;
 }
 
 /*!
   Set the placeholder \a placeholder to be bound to value \a val in the
   prepared statement.
-  \fn TSqlQuery &TSqlQuery::bind(const QString &placeholder, const QVariant &val)
 */
+TSqlQuery &TSqlQuery::bind(const QString &placeholder, const QVariant &val)
+{
+    const auto &db = TSqlDatabase::database(_connectionName);
+
+    if (db.isPreparedStatementSupported()) {
+        Tf::error("Not supported colon-name placeholder of prepared statement for the database");
+    } else {
+        QSqlQuery::bindValue(placeholder, val);
+    }
+    return *this;
+}
 
 /*!
   Set the placeholder in position \a pos to be bound to value \a val in
   the prepared statement. Field numbering starts at 0.
-  \fn TSqlQuery &TSqlQuery::bind(int pos, const QVariant &val)
 */
+TSqlQuery &TSqlQuery::bind(int pos, const QVariant &val)
+{
+    const auto &db = TSqlDatabase::database(_connectionName);
+
+    if (pos < 0) {
+        return *this;
+    }
+
+    if (db.isPreparedStatementSupported()) {
+        int d = pos - _boundValues.count();
+        if (d >= 0) {
+            for (int i = 0; i < d; i++) {
+                _boundValues.append(QVariant());
+            }
+            _boundValues.append(val);
+        } else {
+            _boundValues[pos] = val;
+        }
+    } else {
+        QSqlQuery::bindValue(pos, val);
+    }
+    return *this;
+}
 
 /*!
   Adds the value \a val to the list of values when using positional value
   binding and returns the query object. The order of the addBind() calls
   determines which placeholder a value will be bound to in the prepared
   query.
-  \fn TSqlQuery &TSqlQuery::addBind(const QVariant &val)
 */
+TSqlQuery &TSqlQuery::addBind(const QVariant &val)
+{
+    const auto &db = TSqlDatabase::database(_connectionName);
+
+    if (db.isPreparedStatementSupported()) {
+        _boundValues.append(val);
+    } else {
+        QSqlQuery::addBindValue(val);
+    }
+    return *this;
+}
+
+
+QVariant TSqlQuery::boundValue(int pos) const
+{
+    const auto &db = TSqlDatabase::database(_connectionName);
+    return (db.isPreparedStatementSupported()) ? _boundValues.value(pos) : QSqlQuery::boundValue(pos);
+}
+
+
+QVariantList TSqlQuery::boundValues() const
+{
+    const auto &db = TSqlDatabase::database(_connectionName);
+    if (db.isPreparedStatementSupported()) {
+        return _boundValues;
+    } else {
+        return QSqlQuery::boundValues();
+    }
+}
+
 
 /*!
   Returns the value of first field in the next object and advances the

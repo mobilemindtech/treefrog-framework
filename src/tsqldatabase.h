@@ -9,7 +9,6 @@ class TSqlDriverExtension;
 
 class T_CORE_EXPORT TSqlDatabase {
 public:
-#if QT_VERSION >= 0x050400
     enum DbmsType {
         UnknownDbms = QSqlDriver::UnknownDbms,
         MSSqlServer = QSqlDriver::MSSqlServer,
@@ -21,19 +20,6 @@ public:
         Interbase = QSqlDriver::Interbase,
         DB2 = QSqlDriver::DB2
     };
-#else
-    enum DbmsType {
-        UnknownDbms,
-        MSSqlServer,
-        MySqlServer,
-        PostgreSQL,
-        Oracle,
-        Sybase,
-        SQLite,
-        Interbase,
-        DB2
-    };
-#endif
 
     explicit TSqlDatabase(const QSqlDatabase &database = QSqlDatabase());
     TSqlDatabase(const TSqlDatabase &other);
@@ -50,20 +36,25 @@ public:
     bool isUpsertEnabled() const { return _enableUpsert; }
     void setUpsertEnabled(bool enable) { _enableUpsert = enable; }
     bool isUpsertSupported() const;
+    bool isPreparedStatementSupported() const;
     const TSqlDriverExtension *driverExtension() const { return _driverExtension; }
-    void setDriverExtension(TSqlDriverExtension *extension);
 
     static const char *const defaultConnection;
-    static const TSqlDatabase &database(const QString &connectionName = QLatin1String(defaultConnection));
+    static TSqlDatabase &database(const QString &connectionName = QLatin1String(defaultConnection));
     static TSqlDatabase &addDatabase(const QString &driver, const QString &connectionName = QLatin1String(defaultConnection));
     static void removeDatabase(const QString &connectionName = QLatin1String(defaultConnection));
     static bool contains(const QString &connectionName = QLatin1String(defaultConnection));
 
 private:
+    TSqlDriverExtension *driverExtension() { return _driverExtension; }
+    void setDriverExtension(TSqlDriverExtension *extension);
+
     QSqlDatabase _sqlDatabase;
     QStringList _postOpenStatements;
     bool _enableUpsert {false};
     TSqlDriverExtension *_driverExtension {nullptr};
+
+    friend class TSqlDatabasePool;
 };
 
 

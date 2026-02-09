@@ -23,6 +23,10 @@ public:
     virtual const TSession &session() const;
     virtual QString getRenderingData(const QString &templateName, const QVariantMap &vars = QVariantMap());
     virtual QByteArray authenticityToken() const { return QByteArray(); }
+    virtual QVariantMap flashVariants() const { return QVariantMap(); }
+    virtual QVariant flashVariant(const QString &) const { return QVariant(); }
+    virtual QJsonObject flashVariantsJson() const { return QJsonObject(); }
+    virtual QJsonObject flashVariantJson(const QString &) const { return QJsonObject(); }
     virtual void setFlash(const QString &name, const QVariant &value);
     void exportVariant(const QString &name, const QVariant &value, bool overwrite = true);
     virtual bool isUserLoggedIn() const;
@@ -30,6 +34,11 @@ public:
     TActionContext *context() { return _context; }
     void setContext(TActionContext *context) { _context = context; }
     static QThread *currentThread() { return QThread::currentThread(); }
+
+    TAbstractController(const TAbstractController &) = delete;
+    TAbstractController &operator=(const TAbstractController &) = delete;
+    TAbstractController(TAbstractController &&) = delete;
+    TAbstractController &operator=(TAbstractController &&) = delete;
 
 protected:
     virtual TSession &session();
@@ -50,8 +59,6 @@ private:
     QVariantMap _exportVars;
     TActionContext *_context {nullptr};
 
-    T_DISABLE_COPY(TAbstractController)
-    T_DISABLE_MOVE(TAbstractController)
     friend class TDirectView;
 };
 

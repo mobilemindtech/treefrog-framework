@@ -9,7 +9,7 @@
 #include <TBson>
 #include <TMongoCursor>
 extern "C" {
-#include <mongoc.h>
+#include "mongoc/mongoc.h"
 }
 
 
@@ -34,7 +34,7 @@ bool TMongoCursor::next()
         ret = mongoc_cursor_next(_mongoCursor, (const bson_t **)&_bsonDoc);
         if (!ret) {
             if (mongoc_cursor_error(_mongoCursor, &error)) {
-                tSystemError("MongoDB Cursor Error: %s", error.message);
+                tSystemError("MongoDB Cursor Error: {}", (const char *)error.message);
             }
         }
     }

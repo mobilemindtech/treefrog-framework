@@ -10,11 +10,7 @@
 #include <QLocale>
 #include <QMap>
 #include <QUrl>
-#if QT_VERSION < 0x060000
-# include <QTextCodec>
-#else
-# include <QStringEncoder>
-#endif
+#include <QStringEncoder>
 
 #if defined(Q_OS_WIN)
 #include <qt_windows.h>
@@ -24,60 +20,53 @@
 
 constexpr auto HTTP_DATE_TIME_FORMAT = "ddd, d MMM yyyy hh:mm:ss";
 
-
-class ReasonPhrase : public QMap<int, QByteArray> {
-public:
-    ReasonPhrase() :
-        QMap<int, QByteArray>()
-    {
-        // Informational 1xx
-        insert(Tf::Continue, "Continue");
-        insert(Tf::SwitchingProtocols, "Switching Protocols");
-        // Successful 2xx
-        insert(Tf::OK, "OK");
-        insert(Tf::Created, "Created");
-        insert(Tf::Accepted, "Accepted");
-        insert(Tf::NonAuthoritativeInformation, "Non-Authoritative Information");
-        insert(Tf::NoContent, "No Content");
-        insert(Tf::ResetContent, "Reset Content");
-        insert(Tf::PartialContent, "Partial Content");
-        // Redirection 3xx
-        insert(Tf::MultipleChoices, "Multiple Choices");
-        insert(Tf::MovedPermanently, "Moved Permanently");
-        insert(Tf::Found, "Found");
-        insert(Tf::SeeOther, "See Other");
-        insert(Tf::NotModified, "Not Modified");
-        insert(Tf::UseProxy, "Use Proxy");
-        insert(Tf::TemporaryRedirect, "Temporary Redirect");
-        // Client Error 4xx
-        insert(Tf::BadRequest, "Bad Request");
-        insert(Tf::Unauthorized, "Unauthorized");
-        insert(Tf::PaymentRequired, "Payment Required");
-        insert(Tf::Forbidden, "Forbidden");
-        insert(Tf::NotFound, "Not Found");
-        insert(Tf::MethodNotAllowed, "Method Not Allowed");
-        insert(Tf::NotAcceptable, "Not Acceptable");
-        insert(Tf::ProxyAuthenticationRequired, "Proxy Authentication Required");
-        insert(Tf::RequestTimeout, "Request Timeout");
-        insert(Tf::Conflict, "Conflict");
-        insert(Tf::Gone, "Gone");
-        insert(Tf::LengthRequired, "Length Required");
-        insert(Tf::PreconditionFailed, "Precondition Failed");
-        insert(Tf::RequestEntityTooLarge, "Request Entity Too Large");
-        insert(Tf::RequestURITooLong, "Request-URI Too Long");
-        insert(Tf::UnsupportedMediaType, "Unsupported Media Type");
-        insert(Tf::RequestedRangeNotSatisfiable, "Requested Range Not Satisfiable");
-        insert(Tf::ExpectationFailed, "Expectation Failed");
-        // Server Error 5xx
-        insert(Tf::InternalServerError, "Internal Server Error");
-        insert(Tf::NotImplemented, "Not Implemented");
-        insert(Tf::BadGateway, "Bad Gateway");
-        insert(Tf::ServiceUnavailable, "Service Unavailable");
-        insert(Tf::GatewayTimeout, "Gateway Timeout");
-        insert(Tf::HTTPVersionNotSupported, "HTTP Version Not Supported");
-    }
+const QMap<int, QByteArray> reasonPhrase = {
+    // Informational 1xx
+    {Tf::Continue, "Continue"},
+    {Tf::SwitchingProtocols, "Switching Protocols"},
+    // Successful 2xx
+    {Tf::OK, "OK"},
+    {Tf::Created, "Created"},
+    {Tf::Accepted, "Accepted"},
+    {Tf::NonAuthoritativeInformation, "Non-Authoritative Information"},
+    {Tf::NoContent, "No Content"},
+    {Tf::ResetContent, "Reset Content"},
+    {Tf::PartialContent, "Partial Content"},
+    // Redirection 3xx
+    {Tf::MultipleChoices, "Multiple Choices"},
+    {Tf::MovedPermanently, "Moved Permanently"},
+    {Tf::Found, "Found"},
+    {Tf::SeeOther, "See Other"},
+    {Tf::NotModified, "Not Modified"},
+    {Tf::UseProxy, "Use Proxy"},
+    {Tf::TemporaryRedirect, "Temporary Redirect"},
+    // Client Error 4xx
+    {Tf::BadRequest, "Bad Request"},
+    {Tf::Unauthorized, "Unauthorized"},
+    {Tf::PaymentRequired, "Payment Required"},
+    {Tf::Forbidden, "Forbidden"},
+    {Tf::NotFound, "Not Found"},
+    {Tf::MethodNotAllowed, "Method Not Allowed"},
+    {Tf::NotAcceptable, "Not Acceptable"},
+    {Tf::ProxyAuthenticationRequired, "Proxy Authentication Required"},
+    {Tf::RequestTimeout, "Request Timeout"},
+    {Tf::Conflict, "Conflict"},
+    {Tf::Gone, "Gone"},
+    {Tf::LengthRequired, "Length Required"},
+    {Tf::PreconditionFailed, "Precondition Failed"},
+    {Tf::RequestEntityTooLarge, "Request Entity Too Large"},
+    {Tf::RequestURITooLong, "Request-URI Too Long"},
+    {Tf::UnsupportedMediaType, "Unsupported Media Type"},
+    {Tf::RequestedRangeNotSatisfiable, "Requested Range Not Satisfiable"},
+    {Tf::ExpectationFailed, "Expectation Failed"},
+    // Server Error 5xx
+    {Tf::InternalServerError, "Internal Server Error"},
+    {Tf::NotImplemented, "Not Implemented"},
+    {Tf::BadGateway, "Bad Gateway"},
+    {Tf::ServiceUnavailable, "Service Unavailable"},
+    {Tf::GatewayTimeout, "Gateway Timeout"},
+    {Tf::HTTPVersionNotSupported, "HTTP Version Not Supported"},
 };
-Q_GLOBAL_STATIC(ReasonPhrase, reasonPhrase);
 
 
 /*!
@@ -258,17 +247,15 @@ QString THttpUtility::jsonEscape(const QVariant &input)
 */
 QByteArray THttpUtility::toMimeEncoded(const QString &input, const QByteArray &encoding)
 {
-#if QT_VERSION < 0x060000
-    QTextCodec *codec = QTextCodec::codecForName(encoding);
-    return toMimeEncoded(input, codec);
-#else
     auto e = QStringConverter::encodingForName(encoding.data());
     QStringConverter::Encoding enc = (e) ? e.value() : QStringConverter::Utf8;
     return toMimeEncoded(input, enc);
-#endif
 }
 
-#if QT_VERSION >= 0x060000
+/*!
+  Returns a decoded copy of the MIME-Base64 array \a mime.
+  @sa toMimeEncoded(const QString &, QTextCodec *)
+*/
 QByteArray THttpUtility::toMimeEncoded(const QString &input, QStringConverter::Encoding encoding)
 {
     QByteArray encoded;
@@ -286,40 +273,11 @@ QByteArray THttpUtility::toMimeEncoded(const QString &input, QStringConverter::E
     encoded += "?=";
     return encoded;
 }
-#endif
 
 
 /*!
   Returns a byte array copy of \a input, encoded as MIME-Base64.
   @sa fromMimeEncoded(const QByteArray &)
-*/
-#if QT_VERSION < 0x060000
-QByteArray THttpUtility::toMimeEncoded(const QString &input, QTextCodec *codec)
-{
-    QByteArray encoded;
-    if (!codec)
-        return encoded;
-
-    QByteArray array;
-    if (codec->name().toLower() == "iso-2022-jp") {
-        array = codec->fromUnicode(input + ' ');  // append dummy ascii char
-        array.chop(1);
-    } else {
-        array = codec->fromUnicode(input);
-    }
-
-    encoded += "=?";
-    encoded += codec->name();
-    encoded += "?B?";
-    encoded += array.toBase64();
-    encoded += "?=";
-    return encoded;
-}
-#endif
-
-/*!
-  Returns a decoded copy of the MIME-Base64 array \a mime.
-  @sa toMimeEncoded(const QString &, QTextCodec *)
 */
 QString THttpUtility::fromMimeEncoded(const QByteArray &mime)
 {
@@ -332,18 +290,11 @@ QString THttpUtility::fromMimeEncoded(const QByteArray &mime)
     int j = mime.indexOf('?', i);
     if (j > i) {
         QByteArray encoding = mime.mid(i, j - i);
-#if QT_VERSION < 0x060000
-        QTextCodec *codec = QTextCodec::codecForName(encoding);
-        if (!codec) {
-            return text;
-        }
-#else
         auto enc = QStringConverter::encodingForName(encoding);
         if (!enc) {
             return text;
         }
         QStringDecoder decoder(enc.value());
-#endif
 
         i = ++j;
         int j = mime.indexOf('?', i);
@@ -354,11 +305,7 @@ QString THttpUtility::fromMimeEncoded(const QByteArray &mime)
             if (j > i) {
                 if (enc == "B" || enc == "b") {
                     QByteArray base = mime.mid(i, i - j);
-#if QT_VERSION < 0x060000
-                    text = codec->toUnicode(QByteArray::fromBase64(base));
-#else
                     text = decoder.decode(QByteArray::fromBase64(base));
-#endif
                 } else if (enc == "Q" || enc == "q") {
                     // no implement..
                 } else {
@@ -375,7 +322,7 @@ QString THttpUtility::fromMimeEncoded(const QByteArray &mime)
 */
 QByteArray THttpUtility::getResponseReasonPhrase(int statusCode)
 {
-    return reasonPhrase()->value(statusCode);
+    return reasonPhrase.value(statusCode);
 }
 
 /*!
@@ -409,7 +356,7 @@ QByteArray THttpUtility::timeZone()
     tz += (offset > 0) ? '+' : '-';
     offset = qAbs(offset);
     tz += QString("%1%2").arg(offset / 60, 2, 10, QLatin1Char('0')).arg(offset % 60, 2, 10, QLatin1Char('0')).toLatin1();
-    tSystemDebug("tz: %s", tz.data());
+    tSystemDebug("tz: {}", (const char*)tz.data());
     return tz;
 }
 
@@ -432,7 +379,7 @@ QByteArray THttpUtility::toHttpDateTimeString(const QDateTime &dateTime)
         break;
 
     default:
-        tWarn("Invalid time specification");
+        Tf::warn("Invalid time specification");
         break;
     }
     return d;
@@ -446,7 +393,7 @@ QDateTime THttpUtility::fromHttpDateTimeString(const QByteArray &localTime)
 {
     QByteArray tz = localTime.mid(localTime.length() - 5).trimmed();
     if (!tz.contains("GMT") && tz != timeZone()) {
-        tWarn("Time zone not match: %s", tz.data());
+        Tf::warn("Time zone not match: {}", (const char *)tz.data());
     }
     return QLocale(QLocale::C).toDateTime(localTime.left(localTime.lastIndexOf(' ')), HTTP_DATE_TIME_FORMAT);
 }
@@ -469,7 +416,7 @@ QDateTime THttpUtility::fromHttpDateTimeString(const QByteArray &localTime)
 QDateTime THttpUtility::fromHttpDateTimeUTCString(const QByteArray &utc)
 {
     if (!utc.endsWith(" +0000") && !utc.endsWith(" GMT")) {
-        tWarn("HTTP Date-Time format error: %s", utc.data());
+        Tf::warn("HTTP Date-Time format error: {}", utc.data());
     }
     return QLocale(QLocale::C).toDateTime(utc.left(utc.lastIndexOf(' ')), HTTP_DATE_TIME_FORMAT);
 }

@@ -11,12 +11,8 @@
 #include <QMap>
 #include <QSettings>
 #include <QString>
-#if QT_VERSION < 0x060000
-# include <QTextCodec>
-#endif
 
 constexpr auto DEFAULT_OUTPUT_DIR = "viewcodes";
-
 extern QString devIni;
 extern int defaultTrimMode;
 
@@ -69,19 +65,6 @@ int main(int argc, char *argv[])
     QSettings appSetting(appIni, QSettings::IniFormat);
     QSettings devSetting(devIni, QSettings::IniFormat);
 
-    // Default codec
-#if QT_VERSION < 0x060000
-    QTextCodec *codec = QTextCodec::codecForName("UTF-8");
-    QString codecName = appSetting.value("InternalEncoding").toString();
-    if (!codecName.isEmpty()) {
-        QTextCodec *c = QTextCodec::codecForName(codecName.toLatin1().constData());
-        if (c) {
-            codec = c;
-        }
-    }
-    QTextCodec::setCodecForLocale(codec);
-#endif
-
     defaultTrimMode = devSetting.value("Erb.DefaultTrimMode", "1").toInt();
     std::printf("Erb.DefaultTrimMode: %d\n", defaultTrimMode);
 
@@ -116,7 +99,7 @@ int main(int argc, char *argv[])
     ViewConverter conv(viewDir, outputDir, createProFile);
     QString templateSystem = devSetting.value("TemplateSystem").toString();
     if (templateSystem.isEmpty()) {
-        templateSystem = appSetting.value("TemplateSystem", "Erb").toString();
+        templateSystem = appSetting.value("TemplateSystem", "erb").toString();
     }
 
     res = conv.convertView(templateSystem);

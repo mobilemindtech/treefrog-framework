@@ -147,7 +147,7 @@ bool TMongoQuery::insert(QVariantMap &document)
     if (ret) {
         insertedCount = reply.value(QStringLiteral("insertedCount")).toInt();
     }
-    tSystemDebug("TMongoQuery::insert insertedCount:%d", insertedCount);
+    tSystemDebug("TMongoQuery::insert insertedCount:{}", insertedCount);
     return (insertedCount == 1);
 }
 
@@ -168,7 +168,7 @@ int TMongoQuery::remove(const QVariantMap &criteria)
     if (res) {
         deletedCount = reply.value(QStringLiteral("deletedCount")).toInt();
     }
-    tSystemDebug("TMongoQuery::remove deletedCount:%d", deletedCount);
+    tSystemDebug("TMongoQuery::remove deletedCount:{}", deletedCount);
     return deletedCount;
 }
 
@@ -218,7 +218,7 @@ int TMongoQuery::update(const QVariantMap &criteria, const QVariantMap &document
     if (res) {
         modifiedCount = reply.value(QStringLiteral("modifiedCount")).toInt();
     }
-    tSystemDebug("TMongoQuery::update modifiedCount:%d", modifiedCount);
+    tSystemDebug("TMongoQuery::update modifiedCount:{}", modifiedCount);
     return modifiedCount;
 }
 
@@ -226,13 +226,13 @@ int TMongoQuery::update(const QVariantMap &criteria, const QVariantMap &document
   Updates existing documents of the selection criteria \a criteria in
   the collection with new document \a document.
 */
-int TMongoQuery::updateMulti(const QVariantMap &criteria, const QVariantMap &document)
+int TMongoQuery::updateMany(const QVariantMap &criteria, const QVariantMap &document)
 {
     int modifiedCount = -1;
     QVariantMap doc;
 
     if (!_database.isValid()) {
-        tSystemError("TMongoQuery::updateMulti : driver not loaded");
+        tSystemError("TMongoQuery::updateMany : driver not loaded");
         return modifiedCount;
     }
 
@@ -247,7 +247,7 @@ int TMongoQuery::updateMulti(const QVariantMap &criteria, const QVariantMap &doc
     if (res) {
         modifiedCount = reply.value(QStringLiteral("modifiedCount")).toInt();
     }
-    tSystemDebug("TMongoQuery::updateMulti modifiedCount:%d", modifiedCount);
+    tSystemDebug("TMongoQuery::updateMany modifiedCount:{}", modifiedCount);
     return modifiedCount;
 }
 

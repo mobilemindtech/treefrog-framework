@@ -17,6 +17,8 @@
 #include "otamagenerator.h"
 #include "vueservicegenerator.h"
 #include "vueerbgenerator.h"
+#include "vitevuegenerator.h"
+#include "vitevueservicegenerator.h"
 #include "projectfilegenerator.h"
 #include "sqlobjgenerator.h"
 #include "tableschema.h"
@@ -26,9 +28,7 @@
 #include "apicontrollergenerator.h"
 #include "apiservicegenerator.h"
 #include <QtCore>
-#if QT_VERSION < 0x060000
-# include <QTextCodec>
-#endif
+#include <memory>
 #include <random>
 #ifndef Q_CC_MSVC
 #include <unistd.h>
@@ -41,8 +41,8 @@
 #define D_VIEWS QLatin1String("views/")
 #define D_HELPERS QLatin1String("helpers/")
 
-enum SubCommand {
-    Invalid = 0,
+enum class SubCommand {
+    Invalid,
     Help,
     New,
     Controller,
@@ -65,150 +65,147 @@ enum SubCommand {
     ShowCollections,
 };
 
-class SubCommands : public QHash<QString, int> {
-public:
-    SubCommands() :
-        QHash<QString, int>()
-    {
-        insert("-h", Help);
-        insert("--help", Help);
-        insert("new", New);
-        insert("n", New);
-        insert("controller", Controller);
-        insert("c", Controller);
-        insert("model", Model);
-        insert("m", Model);
-        insert("helper", Helper);
-        insert("h", Helper);
-        insert("usermodel", UserModel);
-        insert("u", UserModel);
-        insert("sqlobject", SqlObject);
-        insert("o", SqlObject);
-        insert("mongoscaffold", MongoScaffold);
-        insert("ms", MongoScaffold);
-        // insert("updatemodel", UpdateModel);
-        // insert("um", UpdateModel);
-        insert("mongomodel", MongoModel);
-        insert("mm", MongoModel);
-        insert("websocket", WebSocketEndpoint);
-        insert("w", WebSocketEndpoint);
-        insert("api", Api);
-        insert("a", Api);
-        insert("validator", Validator);
-        insert("v", Validator);
-        insert("mailer", Mailer);
-        insert("l", Mailer);
-        insert("scaffold", Scaffold);
-        insert("s", Scaffold);
-        insert("delete", Delete);
-        insert("d", Delete);
-        insert("remove", Delete);
-        insert("r", Delete);
-        insert("--show-drivers", ShowDrivers);
-        insert("--show-driver-path", ShowDriverPath);
-        insert("--show-tables", ShowTables);
-        insert("--show-collections", ShowCollections);
-    }
+enum class TemplateSystem {
+    Invalid,
+    Erb,
+    Otama,
+    Vue,
+    Vite_Vue,
 };
-Q_GLOBAL_STATIC(SubCommands, subCommands)
 
-
-class SubDirs : public QStringList {
-public:
-    SubDirs() :
-        QStringList()
-    {
-        append(L("controllers"));
-        append(L("models"));
-        append(L("models/objects"));
-        append(L("models/sqlobjects"));
-        append(L("models/mongoobjects"));
-        append(L("views"));
-        append(L("views/layouts"));
-        append(L("views/mailer"));
-        append(L("views/partial"));
-        append(L("views/_src"));
-        append(L("helpers"));
-        append(L("config"));
-        append(L("public"));
-        append(L("public/images"));
-        append(L("public/js"));
-        append(L("public/css"));
-        append(L("db"));
-        append(L("lib"));
-        append(L("log"));
-        append(L("plugin"));
-        append(L("script"));
-        append(L("sql"));
-        append(L("test"));
-        append(L("tmp"));
-        append(L("cmake"));
-    }
+const QMap<QString, SubCommand> subCommands = {
+    {"-h", SubCommand::Help},
+    {"--help", SubCommand::Help},
+    {"new", SubCommand::New},
+    {"n", SubCommand::New},
+    {"controller", SubCommand::Controller},
+    {"c", SubCommand::Controller},
+    {"model", SubCommand::Model},
+    {"m", SubCommand::Model},
+    {"helper", SubCommand::Helper},
+    {"h", SubCommand::Helper},
+    {"usermodel", SubCommand::UserModel},
+    {"u", SubCommand::UserModel},
+    {"sqlobject", SubCommand::SqlObject},
+    {"o", SubCommand::SqlObject},
+    {"mongoscaffold", SubCommand::MongoScaffold},
+    {"ms", SubCommand::MongoScaffold},
+    //{"updatemodel", SubCommand::UpdateModel},
+    //{"um", SubCommand::UpdateModel},
+    {"mongomodel", SubCommand::MongoModel},
+    {"mm", SubCommand::MongoModel},
+    {"websocket", SubCommand::WebSocketEndpoint},
+    {"w", SubCommand::WebSocketEndpoint},
+    {"api", SubCommand::Api},
+    {"a", SubCommand::Api},
+    {"validator", SubCommand::Validator},
+    {"v", SubCommand::Validator},
+    {"mailer", SubCommand::Mailer},
+    {"l", SubCommand::Mailer},
+    {"scaffold", SubCommand::Scaffold},
+    {"s", SubCommand::Scaffold},
+    {"delete", SubCommand::Delete},
+    {"d", SubCommand::Delete},
+    {"remove", SubCommand::Delete},
+    {"r", SubCommand::Delete},
+    {"--show-drivers", SubCommand::ShowDrivers},
+    {"--show-driver-path", SubCommand::ShowDriverPath},
+    {"--show-tables", SubCommand::ShowTables},
+    {"--show-collections", SubCommand::ShowCollections},
 };
-Q_GLOBAL_STATIC(SubDirs, subDirs)
 
+const QMap<QString, TemplateSystem> templateSystemMap = {
+    {"erb", TemplateSystem::Erb},
+    {"otama", TemplateSystem::Otama},
+    {"vue", TemplateSystem::Vue},
+    {"vite+vue", TemplateSystem::Vite_Vue},
+};
 
-class FilePaths : public QStringList {
-public:
-    FilePaths() :
-        QStringList()
-    {
-        append(L("appbase.pri"));
-        append(L("controllers/controllers.pro"));
-        append(L("controllers/applicationcontroller.h"));
-        append(L("controllers/applicationcontroller.cpp"));
-        append(L("models/models.pro"));
+const QStringList subDirs = {
+    L("controllers"),
+    L("models"),
+    L("models/objects"),
+    L("models/sqlobjects"),
+    L("models/mongoobjects"),
+    L("views"),
+    L("views/layouts"),
+    L("views/mailer"),
+    L("views/partial"),
+    L("views/_src"),
+    L("helpers"),
+    L("config"),
+    L("public"),
+    L("public/images"),
+    L("public/js"),
+    L("public/css"),
+    L("db"),
+    L("lib"),
+    L("log"),
+    L("plugin"),
+    L("script"),
+    L("sql"),
+    L("test"),
+    L("tmp"),
+    L("cmake"),
+};
+
+const QStringList filePaths = {
+    L("appbase.pri"),
+    L("controllers/controllers.pro"),
+    L("controllers/applicationcontroller.h"),
+    L("controllers/applicationcontroller.cpp"),
+    L("models/models.pro"),
 #ifdef Q_OS_WIN
-        append(L("models/objects/_dummymodel.h"));
-        append(L("models/objects/_dummymodel.cpp"));
+    L("models/objects/_dummymodel.h"),
+    L("models/objects/_dummymodel.cpp"),
 #endif
-        append(L("views/views.pro"));
-        append(L("views/_src/_src.pro"));
-        append(L("views/layouts/.trim_mode"));
-        append(L("views/mailer/.trim_mode"));
-        append(L("views/partial/.trim_mode"));
-        append(L("helpers/helpers.pro"));
-        append(L("helpers/applicationhelper.h"));
-        append(L("helpers/applicationhelper.cpp"));
-        append(L("config/application.ini"));
-        append(L("config/database.ini"));
-        append(L("config/development.ini"));
-        append(L("config/internet_media_types.ini"));
-        append(L("config/logger.ini"));
-        append(L("config/mongodb.ini"));
-        append(L("config/redis.ini"));
-        append(L("config/memcached.ini"));
-        append(L("config/routes.cfg"));
-        append(L("config/validation.ini"));
-        append(L("config/cache.ini"));
-        append(L("public/403.html"));
-        append(L("public/404.html"));
-        append(L("public/413.html"));
-        append(L("public/500.html"));
-        append(L("script/JSXTransformer.js"));
-        append(L("script/react.js"));  // React
-        append(L("script/react-with-addons.js"));  // React
-        append(L("script/react-dom-server.js"));  // React
-        // CMake
-        append(L("CMakeLists.txt"));
-        append(L("cmake/CacheClean.cmake"));
-        append(L("cmake/TargetCmake.cmake"));
-        append(L("controllers/CMakeLists.txt"));
-        append(L("models/CMakeLists.txt"));
-        append(L("views/CMakeLists.txt"));
-        append(L("helpers/CMakeLists.txt"));
-    }
+    L("views/views.pro"),
+    L("views/_src/_src.pro"),
+    L("views/layouts/.trim_mode"),
+    L("views/mailer/.trim_mode"),
+    L("views/partial/.trim_mode"),
+    L("helpers/helpers.pro"),
+    L("helpers/applicationhelper.h"),
+    L("helpers/applicationhelper.cpp"),
+    L("config/application.ini"),
+    L("config/database.ini"),
+    L("config/development.ini"),
+    L("config/internet_media_types.ini"),
+    L("config/logger.ini"),
+    L("config/mongodb.ini"),
+    L("config/redis.ini"),
+    L("config/memcached.ini"),
+    L("config/routes.cfg"),
+    L("config/validation.ini"),
+    L("config/cache.ini"),
+    L("public/403.html"),
+    L("public/404.html"),
+    L("public/413.html"),
+    L("public/500.html"),
+    L("script/JSXTransformer.js"),
+    L("script/react.js"),  // React
+    L("script/react-with-addons.js"),  // React
+    L("script/react-dom-server.js"),  // React
+    // CMake
+    L("CMakeLists.txt"),
+    L("cmake/CacheClean.cmake"),
+    L("cmake/TargetCmake.cmake"),
+    L("controllers/CMakeLists.txt"),
+    L("models/CMakeLists.txt"),
+    L("views/CMakeLists.txt"),
+    L("helpers/CMakeLists.txt"),
 };
-Q_GLOBAL_STATIC(FilePaths, filePaths)
 
+namespace {
 
 const QString appIni = QLatin1String("config/application.ini");
 const QString devIni = QLatin1String("config/development.ini");
-static QSettings appSettings(appIni, QSettings::IniFormat);
-static QSettings devSettings(devIni, QSettings::IniFormat);
-static QString templateSystem;
+QSettings appSettings(appIni, QSettings::IniFormat);
+QSettings devSettings(devIni, QSettings::IniFormat);
+TemplateSystem templateSystem = TemplateSystem::Invalid;
 
-static void usage()
+
+void usage()
 {
     std::printf("usage: tspawn <subcommand> [args]\n\n"
                 "Type 'tspawn --show-drivers' to show all the available database drivers for Qt.\n"
@@ -216,7 +213,7 @@ static void usage()
                 "Type 'tspawn --show-tables' to show all tables to user in the setting of 'dev'.\n"
                 "Type 'tspawn --show-collections' to show all collections in the MongoDB.\n\n"
                 "Available subcommands:\n"
-                "  new (n)         <application-name>\n"
+                "  new (n)         <application-name> [--template [erb | otama | vue | vite+vue]]\n"
                 "  scaffold (s)    <table-name> [model-name]\n"
                 "  controller (c)  <controller-name> action [action ...]\n"
                 "  model (m)       <table-name> [model-name]\n"
@@ -229,11 +226,12 @@ static void usage()
                 "  api (a)         <api-name>\n"
                 "  validator (v)   <name>\n"
                 "  mailer (l)      <mailer-name> action [action ...]\n"
-                "  delete (d)      <table-name, helper-name or validator-name>\n");
+                "  delete (d)      <table-name, helper-name or validator-name>\n"
+    );
 }
 
 
-static QStringList rmfiles(const QStringList &files, bool &allRemove, bool &quit, const QString &baseDir, const QString &proj = QString())
+QStringList rmfiles(const QStringList &files, bool &allRemove, bool &quit, const QString &baseDir, const QString &proj = QString())
 {
     QStringList rmd;
 
@@ -305,7 +303,7 @@ static QStringList rmfiles(const QStringList &files, bool &allRemove, bool &quit
 }
 
 
-static QStringList rmfiles(const QStringList &files, const QString &baseDir, const QString &proj)
+QStringList rmfiles(const QStringList &files, const QString &baseDir, const QString &proj)
 {
     bool allRemove = false;
     bool quit = false;
@@ -313,7 +311,7 @@ static QStringList rmfiles(const QStringList &files, const QString &baseDir, con
 }
 
 
-static uint random(uint max)
+uint random(uint max)
 {
     static std::random_device randev;
     static std::default_random_engine eng(randev());
@@ -322,7 +320,7 @@ static uint random(uint max)
 }
 
 
-static QByteArray randomString(int length)
+QByteArray randomString(int length)
 {
     constexpr auto ch = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
     QByteArray ret;
@@ -335,7 +333,7 @@ static QByteArray randomString(int length)
 }
 
 
-static bool createNewApplication(const QString &name)
+bool createNewApplication(const QString &name, const QByteArray &templateSystem)
 {
     if (name.isEmpty()) {
         qCritical("invalid argument");
@@ -354,7 +352,7 @@ static bool createNewApplication(const QString &name)
     std::printf("  created   %s\n", qUtf8Printable(name));
 
     // Creates sub-directories
-    for (const QString &str : *subDirs()) {
+    for (const QString &str : subDirs) {
         QString d = name + "/" + str;
         if (!mkpath(dir, d)) {
             return false;
@@ -364,7 +362,7 @@ static bool createNewApplication(const QString &name)
     // Copies files
     copy(dataDirPath + "app.pro", name + "/" + name + ".pro");
 
-    for (auto &path : *filePaths()) {
+    for (auto &path : filePaths) {
         QString filename = QFileInfo(path).fileName();
         QString dst = name + "/" + path;
 
@@ -377,6 +375,11 @@ static bool createNewApplication(const QString &name)
         // Replaces a string in application.ini file
         if (filename == "application.ini") {
             replaceString(dst, "$SessionSecret$", randomString(30));
+        }
+
+        // Replaces a string in development.ini file
+        if (filename == "development.ini") {
+            replaceString(dst, "$TemplateSystem$", templateSystem);
         }
     }
 
@@ -391,7 +394,7 @@ static bool createNewApplication(const QString &name)
 }
 
 
-static int deleteScaffold(const QString &name)
+int deleteScaffold(const QString &name)
 {
     // Removes files
     QString str = name;
@@ -428,7 +431,7 @@ static int deleteScaffold(const QString &name)
                << "api" + str + "service.cpp";
 
         // Template system
-        if (templateSystem == "otama") {
+        if (templateSystem == TemplateSystem::Otama) {
             views << str + "/index.html"
                   << str + "/index.otm"
                   << str + "/show.html"
@@ -437,13 +440,14 @@ static int deleteScaffold(const QString &name)
                   << str + "/create.otm"
                   << str + "/save.html"
                   << str + "/save.otm";
-        } else if (templateSystem == "erb") {
+        } else if (templateSystem == TemplateSystem::Erb || templateSystem == TemplateSystem::Vue
+            || templateSystem == TemplateSystem::Vite_Vue) {
             views << str + "/index.erb"
                   << str + "/show.erb"
                   << str + "/create.erb"
                   << str + "/save.erb";
         } else {
-            qCritical("Invalid template system specified: %s", qUtf8Printable(templateSystem));
+            qCritical("Invalid template system specified");
             return 2;
         }
 
@@ -481,7 +485,7 @@ static int deleteScaffold(const QString &name)
 }
 
 
-static bool checkIniFile()
+bool checkIniFile()
 {
     // Checking INI file
     if (!QFile::exists(appIni)) {
@@ -493,7 +497,7 @@ static bool checkIniFile()
 }
 
 
-static void printSuccessMessage(const QString &model)
+void printSuccessMessage(const QString &model)
 {
     QString msg;
 
@@ -521,28 +525,39 @@ static void printSuccessMessage(const QString &model)
 }
 
 
-static bool isVueEnabled()
+std::unique_ptr<Generator> createServiceGenerator(TemplateSystem templateSystem, const QString &service, const QList<QPair<QString, QMetaType::Type>> &fields, int pkIdx, int lockRevIdx)
 {
-    static int vueEnable = -1;
-
-    if (vueEnable < 0) {
-        std::printf("\n");
-        QTextStream stream(stdin);
-        for (;;) {
-            std::printf(" Create sources for vue.js? [y/n] ");
-            QString line = stream.readLine().trimmed();
-
-            const QChar c = line[0];
-            if (c == 'Y' || c == 'y') {
-                vueEnable = 1;
-                break;
-            } else if (c == 'N' || c == 'n') {
-                vueEnable = 0;
-                break;
-            }
-        }
+    if (templateSystem == TemplateSystem::Erb) {
+        return std::make_unique<ServiceGenerator>(service, fields, pkIdx, lockRevIdx);
+    } else if (templateSystem == TemplateSystem::Vue) {
+        return std::make_unique<VueServiceGenerator>(service, fields, pkIdx, lockRevIdx);
+    } else if (templateSystem == TemplateSystem::Vite_Vue) {
+        return std::make_unique<ViteVueServiceGenerator>(service, fields, pkIdx, lockRevIdx);
+    } else if (templateSystem == TemplateSystem::Otama) {
+        return std::make_unique<ServiceGenerator>(service, fields, pkIdx, lockRevIdx);
+    } else {
+        qCritical("Invalid template system specified");
+        return nullptr;
     }
-    return (bool)vueEnable;
+}
+
+
+std::unique_ptr<Generator> createViewGenerator(TemplateSystem templateSystem, const QString &view, const QList<QPair<QString, QMetaType::Type>> &fields, int pkIdx, int autoValIdx)
+{
+    if (templateSystem == TemplateSystem::Erb) {
+        return std::make_unique<ErbGenerator>(view, fields, pkIdx, autoValIdx);
+    } else if (templateSystem == TemplateSystem::Vue) {
+        return std::make_unique<VueErbGenerator>(view, fields, pkIdx, autoValIdx);
+    } else if (templateSystem == TemplateSystem::Vite_Vue) {
+        return std::make_unique<ViteVueGenerator>(view, fields, pkIdx, autoValIdx);
+    } else if (templateSystem == TemplateSystem::Otama) {
+        return std::make_unique<OtamaGenerator>(view, fields, pkIdx, autoValIdx);
+    } else {
+        qCritical("Invalid template system specified");
+        return nullptr;
+    }
+}
+
 }
 
 
@@ -550,38 +565,43 @@ int main(int argc, char *argv[])
 {
     QCoreApplication app(argc, argv);
     QStringList args = QCoreApplication::arguments();
-    int subcmd = subCommands()->value(args.value(1), Invalid);
+    SubCommand subcmd = subCommands.value(args.value(1), SubCommand::Invalid);
 
     switch (subcmd) {
-    case Invalid:
+    case SubCommand::Invalid:
         qCritical("invalid argument");
         return 1;
         break;
 
-    case Help:
+    case SubCommand::Help:
         usage();
         break;
 
-    case New:
+    case SubCommand::New: {
         // Creates new project
-        if (!createNewApplication(args.value(2))) {
+        QByteArray ts = "erb";
+        if (args.count() > 4 && args.value(3) == "--template") {
+            const auto name = args.value(4).toLower();
+            if (templateSystemMap.contains(name)) {
+                ts = name.toLatin1();
+            }
+        }
+
+        if (!createNewApplication(args.value(2), ts)) {
             return 1;
         }
         break;
+    }
 
-    case ShowDrivers:
+    case SubCommand::ShowDrivers:
         std::printf("Available database drivers for Qt:\n");
         for (QStringListIterator i(TableSchema::databaseDrivers()); i.hasNext();) {
             std::printf("  %s\n", qUtf8Printable(i.next()));
         }
         break;
 
-    case ShowDriverPath: {
-#if QT_VERSION < 0x060000
-        QString path = QLibraryInfo::location(QLibraryInfo::PluginsPath) + "/sqldrivers";
-#else
+    case SubCommand::ShowDriverPath: {
         QString path = QLibraryInfo::path(QLibraryInfo::PluginsPath) + "/sqldrivers";
-#endif
         QFileInfo fi(path);
         if (!fi.exists() || !fi.isDir()) {
             qCritical("Error: database driver's directory not found");
@@ -591,7 +611,7 @@ int main(int argc, char *argv[])
         break;
     }
 
-    case ShowTables:
+    case SubCommand::ShowTables:
         if (checkIniFile()) {
             QStringList tables = TableSchema::tables();
             if (!tables.isEmpty()) {
@@ -606,7 +626,7 @@ int main(int argc, char *argv[])
         }
         break;
 
-    case ShowCollections:
+    case SubCommand::ShowCollections:
         if (checkIniFile()) {
             // MongoDB settings
             QString mongoini = appSettings.value("MongoDbSettingsFile").toString().trimmed();
@@ -641,21 +661,21 @@ int main(int argc, char *argv[])
             return 2;
         }
 
-#if QT_VERSION < 0x060000
-        // Sets codec
-        QTextCodec *codec = QTextCodec::codecForName(appSettings.value("InternalEncoding").toByteArray().trimmed());
-        codec = (codec) ? codec : QTextCodec::codecForLocale();
-        QTextCodec::setCodecForLocale(codec);
-#endif
+        // Template system
+        QString ts = devSettings.value("TemplateSystem").toString().toLower();
+        if (ts.isEmpty()) {
+            ts = appSettings.value("TemplateSystem", "Erb").toString().toLower();
+        }
 
-        // ERB or Otama
-        templateSystem = devSettings.value("TemplateSystem").toString().toLower();
-        if (templateSystem.isEmpty()) {
-            templateSystem = appSettings.value("TemplateSystem", "Erb").toString().toLower();
+        if (!templateSystemMap.contains(ts)) {
+            qCritical("Invalid template system specified: %s", qUtf8Printable(ts));
+            return 2;
+        } else {
+           templateSystem = templateSystemMap.value(ts);
         }
 
         switch (subcmd) {
-        case Controller: {
+        case SubCommand::Controller: {
             QString ctrl = args.value(2);
             ControllerGenerator crtlgen(ctrl, args.mid(3));
             crtlgen.generate(D_CTRLS);
@@ -667,7 +687,7 @@ int main(int argc, char *argv[])
             break;
         }
 
-        case Model: {
+        case SubCommand::Model: {
             ModelGenerator modelgen(ModelGenerator::Sql, args.value(3), args.value(2));
             modelgen.generate(D_MODELS);
 
@@ -677,23 +697,21 @@ int main(int argc, char *argv[])
                 return 2;
             }
 
-            if (isVueEnabled()) {
-                VueServiceGenerator svrgen(modelgen.model(), modelgen.fieldList(), pkidx, modelgen.lockRevisionIndex());
-                svrgen.generate(D_MODELS);
-            } else {
-                ServiceGenerator svrgen(modelgen.model(), modelgen.fieldList(), pkidx, modelgen.lockRevisionIndex());
-                svrgen.generate(D_MODELS);
+            // Generates servie file of the specified template system
+            std::unique_ptr<Generator> svrgen = createServiceGenerator(templateSystem, modelgen.model(), modelgen.fieldList(), pkidx, modelgen.lockRevisionIndex());
+            if (svrgen) {
+                svrgen->generate(D_MODELS);
             }
             break;
         }
 
-        case Helper: {
+        case SubCommand::Helper: {
             HelperGenerator helpergen(args.value(2));
             helpergen.generate(D_HELPERS);
             break;
         }
 
-        case UserModel: {
+        case SubCommand::UserModel: {
             ModelGenerator modelgen(ModelGenerator::Sql, args.value(5), args.value(2), args.mid(3, 2));
             modelgen.generate(D_MODELS, true);
 
@@ -703,17 +721,15 @@ int main(int argc, char *argv[])
                 return 2;
             }
 
-            if (isVueEnabled()) {
-                VueServiceGenerator svrgen(modelgen.model(), modelgen.fieldList(), pkidx, modelgen.lockRevisionIndex());
-                svrgen.generate(D_MODELS);
-            } else {
-                ServiceGenerator svrgen(modelgen.model(), modelgen.fieldList(), pkidx, modelgen.lockRevisionIndex());
-                svrgen.generate(D_MODELS);
+            // Generates servie file of the specified template system
+            std::unique_ptr<Generator> svrgen = createServiceGenerator(templateSystem, modelgen.model(), modelgen.fieldList(), pkidx, modelgen.lockRevisionIndex());
+            if (svrgen) {
+                svrgen->generate(D_MODELS);
             }
             break;
         }
 
-        case SqlObject: {
+        case SubCommand::SqlObject: {
             SqlObjGenerator sqlgen(args.value(3), args.value(2));
             QString path = sqlgen.generate(D_MODELS);
 
@@ -723,7 +739,7 @@ int main(int argc, char *argv[])
             break;
         }
 
-        case MongoScaffold: {
+        case SubCommand::MongoScaffold: {
             ModelGenerator modelgen(ModelGenerator::Mongo, args.value(2));
             bool success = modelgen.generate(D_MODELS);
 
@@ -733,26 +749,23 @@ int main(int argc, char *argv[])
                 return 2;
             }
 
-            if (isVueEnabled()) {
-                VueServiceGenerator svrgen(modelgen.model(), modelgen.fieldList(), pkidx, modelgen.lockRevisionIndex());
-                success &= svrgen.generate(D_MODELS);
+            // Generates view files of the specified template system
+            std::unique_ptr<Generator> svrgen = createServiceGenerator(templateSystem, modelgen.model(), modelgen.fieldList(), pkidx, modelgen.lockRevisionIndex());
+            if (svrgen) {
+                svrgen->generate(D_MODELS);
             } else {
-                ServiceGenerator svrgen(modelgen.model(), modelgen.fieldList(), pkidx, modelgen.lockRevisionIndex());
-                success &= svrgen.generate(D_MODELS);
+                qCritical("Invalid template system specified");
+                return 2;
             }
 
             ControllerGenerator crtlgen(modelgen.model(), modelgen.fieldList(), modelgen.primaryKeyIndex(), modelgen.lockRevisionIndex());
             success &= crtlgen.generate(D_CTRLS);
 
             // Generates view files of the specified template system
-            if (templateSystem == "otama") {
-                OtamaGenerator viewgen(modelgen.model(), modelgen.fieldList(), modelgen.primaryKeyIndex(), modelgen.autoValueIndex());
-                viewgen.generate(D_VIEWS);
-            } else if (templateSystem == "erb") {
-                ErbGenerator viewgen(modelgen.model(), modelgen.fieldList(), modelgen.primaryKeyIndex(), modelgen.autoValueIndex());
-                viewgen.generate(D_VIEWS);
+            std::unique_ptr<Generator> viewgen = createViewGenerator(templateSystem, modelgen.model(), modelgen.fieldList(), modelgen.primaryKeyIndex(), modelgen.autoValueIndex());
+            if (viewgen) {
+                viewgen->generate(D_VIEWS);
             } else {
-                qCritical("Invalid template system specified: %s", qUtf8Printable(templateSystem));
                 return 2;
             }
 
@@ -762,7 +775,7 @@ int main(int argc, char *argv[])
             break;
         }
 
-        case MongoModel: {
+        case SubCommand::MongoModel: {
             ModelGenerator modelgen(ModelGenerator::Mongo, args.value(2));
             modelgen.generate(D_MODELS);
 
@@ -772,17 +785,15 @@ int main(int argc, char *argv[])
                 return 2;
             }
 
-            if (isVueEnabled()) {
-                VueServiceGenerator svrgen(modelgen.model(), modelgen.fieldList(), pkidx, modelgen.lockRevisionIndex());
-                svrgen.generate(D_MODELS);
-            } else {
-                ServiceGenerator svrgen(modelgen.model(), modelgen.fieldList(), pkidx, modelgen.lockRevisionIndex());
-                svrgen.generate(D_MODELS);
+            // Generates servie file of the specified template system
+            std::unique_ptr<Generator> svrgen = createServiceGenerator(templateSystem, modelgen.model(), modelgen.fieldList(), pkidx, modelgen.lockRevisionIndex());
+            if (svrgen) {
+                svrgen->generate(D_MODELS);
             }
             break;
         }
 
-        case WebSocketEndpoint: {
+        case SubCommand::WebSocketEndpoint: {
             const QString appendpointfiles[] = {L("controllers/applicationendpoint.h"),
                 L("controllers/applicationendpoint.cpp")};
 
@@ -801,7 +812,7 @@ int main(int argc, char *argv[])
             break;
         }
 
-        case Api: {
+        case SubCommand::Api: {
             ModelGenerator modelgen(ModelGenerator::Sql, args.value(3), args.value(2));
             modelgen.generate(D_MODELS);
 
@@ -819,20 +830,20 @@ int main(int argc, char *argv[])
             break;
         }
 
-        case Validator: {
+        case SubCommand::Validator: {
             ValidatorGenerator validgen(args.value(2));
             validgen.generate(D_HELPERS);
             break;
         }
 
-        case Mailer: {
+        case SubCommand::Mailer: {
             MailerGenerator mailgen(args.value(2), args.mid(3));
             mailgen.generate(D_CTRLS);
             copy(dataDirPath + "mail.erb", D_VIEWS + "mailer/mail.erb");
             break;
         }
 
-        case Scaffold: {
+        case SubCommand::Scaffold: {
             ModelGenerator modelgen(ModelGenerator::Sql, args.value(3), args.value(2));
             bool success = modelgen.generate(D_MODELS);
 
@@ -849,33 +860,22 @@ int main(int argc, char *argv[])
             ControllerGenerator crtlgen(modelgen.model(), modelgen.fieldList(), pkidx, modelgen.lockRevisionIndex());
             success &= crtlgen.generate(D_CTRLS);
 
-            if (isVueEnabled()) {
-                VueServiceGenerator svrgen(modelgen.model(), modelgen.fieldList(), pkidx, modelgen.lockRevisionIndex());
-                svrgen.generate(D_MODELS);
-
-                // Generates view files of the specified template system
-                if (templateSystem == "erb") {
-                    VueErbGenerator viewgen(modelgen.model(), modelgen.fieldList(), pkidx, modelgen.autoValueIndex());
-                    viewgen.generate(D_VIEWS);
-                } else {
-                    qCritical("Invalid template system specified: %s", qUtf8Printable(templateSystem));
-                    return 2;
-                }
+            // Generates service file of the specified template system
+            std::unique_ptr<Generator> svrgen = createServiceGenerator(templateSystem, modelgen.model(), modelgen.fieldList(), pkidx, modelgen.lockRevisionIndex());
+            if (svrgen) {
+                svrgen->generate(D_MODELS);
             } else {
-                ServiceGenerator svrgen(modelgen.model(), modelgen.fieldList(), pkidx, modelgen.lockRevisionIndex());
-                svrgen.generate(D_MODELS);
+                qCritical("Invalid template system specified");
+                return 2;
+            }
 
-                // Generates view files of the specified template system
-                if (templateSystem == "otama") {
-                    OtamaGenerator viewgen(modelgen.model(), modelgen.fieldList(), pkidx, modelgen.autoValueIndex());
-                    viewgen.generate(D_VIEWS);
-                } else if (templateSystem == "erb") {
-                    ErbGenerator viewgen(modelgen.model(), modelgen.fieldList(), pkidx, modelgen.autoValueIndex());
-                    viewgen.generate(D_VIEWS);
-                } else {
-                    qCritical("Invalid template system specified: %s", qUtf8Printable(templateSystem));
-                    return 2;
-                }
+            // Generates view files of the specified template system
+            std::unique_ptr<Generator> viewgen = createViewGenerator(templateSystem, modelgen.model(), modelgen.fieldList(), modelgen.primaryKeyIndex(), modelgen.autoValueIndex());
+            if (viewgen) {
+                viewgen->generate(D_VIEWS);
+            } else {
+                qCritical("Invalid template system specified");
+                return 2;
             }
 
             if (success) {
@@ -884,7 +884,7 @@ int main(int argc, char *argv[])
             break;
         }
 
-        case Delete: {
+        case SubCommand::Delete: {
             // Removes files
             int ret = deleteScaffold(args.value(2));
             if (ret) {

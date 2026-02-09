@@ -11,8 +11,8 @@
 using namespace Tf;
 
 // Regular expression of an HTML tag
-const QRegularExpression HtmlTagReg("<([a-zA-Z0-9]+\\s+(\"[^\"]*\"|'[^']*'|[^'\"<>(){};])*|/?[a-zA-Z0-9]+/?\\s*)>");
-const QRegularExpression WordReg("(\"[^\"]*\"|'[^']*'|[^'\"<>(){};/=\\s]*)");
+const QRegularExpression HtmlTagReg("<([a-zA-Z0-9]+\\s+(\"[^\"]*\"|'[^']*'|[^'\"<>\\(\\){};])*|/?[a-zA-Z0-9]+/?\\s*)>");
+const QRegularExpression WordReg("(\"[^\"]*\"|'[^']*'|[^'\"<>\\(\\){};/=\\s]*)");
 
 
 THtmlElement::THtmlElement()
@@ -431,10 +431,11 @@ THtmlElement &THtmlParser::insertNewElement(int parent, int index)
     } else {
         elements.resize(elements.size() + 1);
         last().parent = parent;
-        if (index >= 0 && index < elements[parent].children.count()) {
-            elements[parent].children.insert(index, lastIndex());
+        auto &ele = elements[parent];
+        if (index >= 0 && index < ele.children.count()) {
+            ele.children.insert(index, lastIndex());
         } else {
-            elements[parent].children.append(lastIndex());
+            ele.children.append(lastIndex());
         }
     }
     return last();
@@ -592,7 +593,7 @@ bool THtmlParser::parentExists(int i, const QString &tag) const
 // void THtmlParser::dumpHtml() const
 // {
 //     for (int i = 0; i < elements.count(); ++i) {
-//         ("%s:%s:%d:%s", qUtf8Printable(QString(depth(i) * 4, QLatin1Char(' '))), qUtf8Printable(at(i).tag), at(i).children.count(), qUtf8Printable(at(i).text));
+//         ("{}:{}:{}:{}", qUtf8Printable(QString(depth(i) * 4, QLatin1Char(' '))), qUtf8Printable(at(i).tag), at(i).children.count(), qUtf8Printable(at(i).text));
 //     }
 // }
 

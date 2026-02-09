@@ -17,23 +17,17 @@
 #include <mutex>
 
 
-class MethodHash : public QMap<QString, Tf::HttpMethod> {
-public:
-    MethodHash() :
-        QMap<QString, Tf::HttpMethod>()
-    {
-        insert("get", Tf::Get);
-        insert("head", Tf::Head);
-        insert("post", Tf::Post);
-        insert("options", Tf::Options);
-        insert("put", Tf::Put);
-        insert("delete", Tf::Delete);
-        insert("trace", Tf::Trace);
-        insert("connect", Tf::Connect);
-        insert("patch", Tf::Patch);
-    }
+const QMap<QString, Tf::HttpMethod> methodHash = {
+    {"get", Tf::Get},
+    {"head", Tf::Head},
+    {"post", Tf::Post},
+    {"options", Tf::Options},
+    {"put", Tf::Put},
+    {"delete", Tf::Delete},
+    {"trace", Tf::Trace},
+    {"connect", Tf::Connect},
+    {"patch", Tf::Patch},
 };
-Q_GLOBAL_STATIC(MethodHash, methodHash)
 
 
 static bool httpMethodOverride()
@@ -173,7 +167,7 @@ Tf::HttpMethod THttpRequest::method() const
 Tf::HttpMethod THttpRequest::realMethod() const
 {
     QString s = d->header.method().toLower();
-    return methodHash()->value(s, Tf::Invalid);
+    return methodHash.value(s, Tf::Invalid);
 }
 
 /*!
@@ -183,19 +177,19 @@ Tf::HttpMethod THttpRequest::getHttpMethodOverride() const
 {
     Tf::HttpMethod method;
     QString str = d->header.rawHeader(QByteArrayLiteral("X-HTTP-Method-Override")).toLower();
-    method = methodHash()->value(str, Tf::Invalid);
+    method = methodHash.value(str, Tf::Invalid);
     if (method != Tf::Invalid) {
         return method;
     }
 
     str = d->header.rawHeader(QByteArrayLiteral("X-HTTP-Method")).toLower();
-    method = methodHash()->value(str, Tf::Invalid);
+    method = methodHash.value(str, Tf::Invalid);
     if (method != Tf::Invalid) {
         return method;
     }
 
     str = d->header.rawHeader(QByteArrayLiteral("X-METHOD-OVERRIDE")).toLower();
-    method = methodHash()->value(str, Tf::Invalid);
+    method = methodHash.value(str, Tf::Invalid);
     return method;
 }
 
@@ -206,7 +200,7 @@ Tf::HttpMethod THttpRequest::getHttpMethodOverride() const
 Tf::HttpMethod THttpRequest::queryItemMethod() const
 {
     QString queryMethod = queryItemValue(QStringLiteral("_method"));
-    return methodHash()->value(queryMethod, Tf::Invalid);
+    return methodHash.value(queryMethod, Tf::Invalid);
 }
 
 
@@ -331,11 +325,7 @@ QVariantMap THttpRequest::itemMap(const QList<QPair<QString, QString>> &items)
 {
     QVariantMap map;
     for (auto &p : items) {
-#if QT_VERSION >= 0x050f00
         map.insert(p.first, p.second);
-#else
-        map.insertMulti(p.first, p.second);
-#endif
     }
     return map;
 }
@@ -510,7 +500,7 @@ void THttpRequest::parseBody(const QByteArray &body, const THttpRequestHeader &h
             QJsonParseError error;
             d->jsonData = QJsonDocument::fromJson(body, &error);
             if (error.error != QJsonParseError::NoError) {
-                tSystemWarn("Json data: %s\n error: %s\n at: %d", body.data(), qUtf8Printable(error.errorString()),
+                tSystemWarn("Json data: {}\n error: {}\n at: {}", body.data(), error.errorString(),
                     error.offset);
             }
         } else if (ctype.startsWith(QLatin1String("multipart/form-data"), Qt::CaseInsensitive)) {
@@ -518,7 +508,7 @@ void THttpRequest::parseBody(const QByteArray &body, const THttpRequestHeader &h
             d->multipartFormData = TMultipartFormData(body, boundary(), context);
             d->formItems = d->multipartFormData.postParameters;
         } else {
-            tSystemWarn("unsupported content-type: %s", qUtf8Printable(ctype));
+            tSystemWarn("unsupported content-type: {}", ctype);
         }
     } /* FALLTHRU */
 
@@ -655,12 +645,12 @@ QHostAddress THttpRequest::originatingClientAddress() const
     if (EnableForwardedForHeader) {
         if (TrustedProxyServers.isEmpty()) {
             static std::once_flag once;
-            std::call_once(once, []() { tWarn("TrustedProxyServers parameter of config is empty!"); });
+            std::call_once(once, []() { Tf::warn("TrustedProxyServers parameter of config is empty!"); });
         }
 
         auto hosts = QString::fromLatin1(header().rawHeader(QByteArrayLiteral("X-Forwarded-For"))).simplified().split(QRegularExpression("\\s?,\\s?"), Tf::SkipEmptyParts);
         if (hosts.isEmpty()) {
-            tWarn("'X-Forwarded-For' header is empty");
+            Tf::warn("'X-Forwarded-For' header is empty");
         } else {
             for (auto &proxy : TrustedProxyServers) {
                 hosts.removeAll(proxy);

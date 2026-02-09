@@ -32,16 +32,30 @@ page_id: "080.050"
 参数可以像格式化字符串和变量的printf格式一样传递. 举例, 像这样:
 
 ```c++
-tError("Invalid Parameter : value : %d", value);
+tError("Invalid Parameter, value : %d", value);
 ```
 
 然后, 下面的记录将会输出到*log/app.log*文件:
 
 ```
-2011-04-01 21:06:04 ERROR [12345678] Invalid Parameter : value : -1
+2011-04-01 21:06:04 ERROR [12345678] Invalid Parameter, value : -1
 ```
 
 在格式化字符串的尾部不需要换行符.
+
+在 TreeFrog 2.10 及更高版本中，如果编译器支持 stdc++20，则可以使用以下方法来描述 std::format 样式格式化.
+
+* Tf::fatal()
+* Tf::error()
+* Tf::warn()
+* Tf::info()
+* Tf::debug()
+* Tf::trace()
+
+其写法如下:
+```c++
+Tf::error("Invalid Parameter, value : {}", value);
+```
 
 ## 更改记录的布局
 
@@ -62,7 +76,7 @@ FileLogger.Layout="%d %5P [%t] %m%n"
 ```
 
 当记录被生成后, 日期和时间将会插入到布局中的'%d'的位置.
-日期格式在FileLogger.DateTimeFormat参数定义. 可以指定的格式和QDateTime::toString()的参数是一样的. 更详细的信息请参考[Qt文档](http://doc.qt.io/qt-5/qdatetime.html){:target="_blank"}.
+日期格式在FileLogger.DateTimeFormat参数定义. 可以指定的格式和QDateTime::toString()的参数是一样的. 更详细的信息请参考[Qt文档](https://doc.qt.io/qt-6/qdatetime.html){:target="_blank"}.
 
 ```ini
 # 指定FileLogger的日期-时间格式, 也可以参考QDateTime类参考

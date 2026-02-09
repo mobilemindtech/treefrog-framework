@@ -1,6 +1,7 @@
 #pragma once
 #include <QHostAddress>
 #include <QtCore>
+#include <TGlobal>
 #include <TAbstractController>
 #include <TAccessValidator>
 #include <TActionHelper>
@@ -9,7 +10,6 @@
 #include <THttpResponse>
 #include <TActionContext>
 #include <TSession>
-#include <TGlobal>
 
 class TActionView;
 class TAbstractUser;
@@ -37,7 +37,11 @@ public:
     virtual QStringList exceptionActionsOfCsrfProtection() const { return QStringList(); }
     virtual bool transactionEnabled() const { return true; }
     QByteArray authenticityToken() const override;
-    QString flash(const QString &name) const;
+    QVariantMap flashVariants() const override;
+    QVariant flashVariant(const QString &key) const override;
+    QJsonObject flashVariantsJson() const override;
+    QJsonObject flashVariantJson(const QString &key) const override;
+    //QString flash(const QString &name) const;
     QHostAddress clientAddress() const;
     virtual bool isUserLoggedIn() const override;
     virtual QString identityKeyOfLoginUser() const;
@@ -83,14 +87,12 @@ protected:
     bool renderAndCache(const QByteArray &key, int seconds, const QString &action = QString(), const QString &layout = QString());
     bool renderOnCache(const QByteArray &key);
     void removeCache(const QByteArray &key);
-#if QT_VERSION >= 0x050c00  // 5.12.0
     bool renderCbor(const QVariant &variant, QCborValue::EncodingOptions opt = QCborValue::NoTransformation);
     bool renderCbor(const QVariantMap &map, QCborValue::EncodingOptions opt = QCborValue::NoTransformation);
     bool renderCbor(const QVariantHash &hash, QCborValue::EncodingOptions opt = QCborValue::NoTransformation);
     bool renderCbor(const QCborValue &value, QCborValue::EncodingOptions opt = QCborValue::NoTransformation);
     bool renderCbor(const QCborMap &map, QCborValue::EncodingOptions opt = QCborValue::NoTransformation);
     bool renderCbor(const QCborArray &array, QCborValue::EncodingOptions opt = QCborValue::NoTransformation);
-#endif
     bool renderErrorResponse(int statusCode);
     void redirect(const QUrl &url, int statusCode = Tf::Found);
     bool sendFile(const QString &filePath, const QByteArray &contentType, const QString &name = QString(), bool autoRemove = false);
@@ -201,10 +203,10 @@ inline void TActionController::setStatusCode(int code)
     _statCode = code;
 }
 
-inline QString TActionController::flash(const QString &name) const
-{
-    return _flashVars.value(name).toString();
-}
+// inline QString TActionController::flash(const QString &name) const
+// {
+//     return _flashVars.value(name).toString();
+// }
 
 inline QByteArray TActionController::contentType() const
 {

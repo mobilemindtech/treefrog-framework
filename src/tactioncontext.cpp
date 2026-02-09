@@ -79,8 +79,8 @@ void TActionContext::execute(THttpRequest &request)
             accessLogger.startElapsedTimer();
         }
 
-        tSystemDebug("method : %s", reqHeader.method().data());
-        tSystemDebug("path : %s", reqHeader.path().data());
+        tSystemDebug("method : {}", reqHeader.method().data());
+        tSystemDebug("path : {}", reqHeader.path().data());
 
         // HTTP method
         Tf::HttpMethod method = _httpRequest->method();
@@ -94,11 +94,12 @@ void TActionContext::execute(THttpRequest &request)
         QStringList components = TUrlRoute::splitPath(path);
         TRouting route = TUrlRoute::instance().findRouting(method, components);
 
-        tSystemDebug("Routing: controller:%s  action:%s", route.controller.data(),
-            route.action.data());
+        tSystemDebug("Routing: controller:{}  action:{}", (const char*)route.controller.data(),
+            (const char*)route.action.data());
 
         if (!route.exists) {
             // Default URL routing
+
             if (Q_UNLIKELY(directViewRenderMode())) {  // Direct view render mode?
                 // Direct view setting
                 route.setRouting(QByteArrayLiteral("directcontroller"), QByteArrayLiteral("show"), components);
@@ -111,7 +112,7 @@ void TActionContext::execute(THttpRequest &request)
                         route.setRouting(c + QByteArrayLiteral("controller"), action, components.mid(2));
                     }
                 }
-                tSystemDebug("Active Controller : %s", route.controller.data());
+                tSystemDebug("Active Controller : {}", (const char*)route.controller.data());
             }
         }
 
@@ -151,13 +152,11 @@ void TActionContext::execute(THttpRequest &request)
                     TSessionManager::instance().remove(_currController->session().sessionId);  // Removes the old session
                     // Re-generate session ID
                     _currController->session().sessionId = TSessionManager::instance().generateId();
-                    tSystemDebug("Re-generate session ID: %s", _currController->session().sessionId.data());
+                    tSystemDebug("Re-generate session ID: {}", (const char*)_currController->session().sessionId.data());
                 }
 
-                if (EnableCsrfProtectionModuleFlag && _currController->csrfProtectionEnabled()) {
-                    // Sets CSRF protection information
-                    TActionController::setCsrfProtectionInto(_currController->session());
-                }
+                // Sets CSRF protection information
+                TActionController::setCsrfProtectionInto(_currController->session());
             }
 
             // Database Transaction
@@ -170,12 +169,11 @@ void TActionContext::execute(THttpRequest &request)
                 // Dispatches
                 bool inv = ctlrDispatcher.invoke(route.action, route.params);
                 if (!inv) {
-                    int bytes = writeResponse(Tf::NotFound, responseHeader);
-                    accessLogger.setResponseBytes(bytes);
+                    _currController->setStatusCode(Tf::NotFound);
                 }
             }
 
-            // Flushes response
+            // Flushes response and sets access log
             flushResponse(_currController, false);
 
             // Session
@@ -188,7 +186,9 @@ void TActionContext::execute(THttpRequest &request)
             }
 
         } else {
-            accessLogger.setStatusCode(Tf::BadRequest);  // Set a default status code
+            // If no controller
+            int responseBytes = 0;
+
             if (route.controller.startsWith('/')) {
                 path = route.controller;
             }
@@ -197,7 +197,7 @@ void TActionContext::execute(THttpRequest &request)
                 QString canonicalPath = QUrl(QStringLiteral(".")).resolved(QUrl(path)).toString().mid(1);
                 QFile reqPath(Tf::app()->publicPath() + canonicalPath);
                 QFileInfo fi(reqPath);
-                tSystemDebug("canonicalPath : %s", qUtf8Printable(canonicalPath));
+                tSystemDebug("canonicalPath : {}", canonicalPath);
 
                 if (fi.isFile() && fi.isReadable()) {
                     // Check "If-Modified-Since" header for caching
@@ -215,49 +215,47 @@ void TActionContext::execute(THttpRequest &request)
                         // Sends a request file
                         responseHeader.setRawHeader(QByteArrayLiteral("Last-Modified"), THttpUtility::toHttpDateTimeString(fi.lastModified()));
                         QByteArray type = Tf::app()->internetMediaType(fi.suffix());
-                        int bytes = writeResponse(Tf::OK, responseHeader, type, &reqPath, reqPath.size());
-                        accessLogger.setResponseBytes(bytes);
+                        responseBytes = writeResponse(Tf::OK, responseHeader, type, &reqPath, reqPath.size());
                     } else {
                         // Not send the data
-                        int bytes = writeResponse(Tf::NotModified, responseHeader);
-                        accessLogger.setResponseBytes(bytes);
+                        responseBytes = writeResponse(Tf::NotModified, responseHeader);
                     }
                 } else {
                     if (!route.exists) {
-                        int bytes = writeResponse(Tf::NotFound, responseHeader);
-                        accessLogger.setResponseBytes(bytes);
+                        responseBytes = writeResponse(Tf::NotFound, responseHeader);
                     } else {
                         // Routing not empty, redirect.
                         responseHeader.setRawHeader(QByteArrayLiteral("Location"), QUrl(path).toEncoded());
                         responseHeader.setContentType(QByteArrayLiteral("text/html"));
-                        int bytes = writeResponse(Tf::Found, responseHeader);
-                        accessLogger.setResponseBytes(bytes);
+                        responseBytes = writeResponse(Tf::Found, responseHeader);
                     }
                 }
-                accessLogger.setStatusCode(responseHeader.statusCode());
 
             } else if (method == Tf::Post) {
-                // file upload?
+                responseBytes = writeResponse(Tf::BadRequest, responseHeader);
             } else {
-                // HEAD, DELETE, ...
+                responseBytes = writeResponse(Tf::BadRequest, responseHeader);
             }
+
+            accessLogger.setResponseBytes(responseBytes);
+            accessLogger.setStatusCode(responseHeader.statusCode());
         }
 
     } catch (ClientErrorException &e) {
-        tWarn("Caught %s: status code:%d", qUtf8Printable(e.className()), e.statusCode());
-        tSystemWarn("Caught %s: status code:%d", qUtf8Printable(e.className()), e.statusCode());
-        int bytes = writeResponse(e.statusCode(), responseHeader);
-        accessLogger.setResponseBytes(bytes);
+        Tf::warn("Caught {}: status code:{}", e.className(), e.statusCode());
+        tSystemWarn("Caught {}: status code:{}", e.className(), e.statusCode());
+        int responseBytes = writeResponse(e.statusCode(), responseHeader);
+        accessLogger.setResponseBytes(responseBytes);
         accessLogger.setStatusCode(e.statusCode());
     } catch (TfException &e) {
-        tError("Caught %s: %s  [%s:%d]", qUtf8Printable(e.className()), qUtf8Printable(e.message()), qUtf8Printable(e.fileName()), e.lineNumber());
-        tSystemError("Caught %s: %s  [%s:%d]", qUtf8Printable(e.className()), qUtf8Printable(e.message()), qUtf8Printable(e.fileName()), e.lineNumber());
+        Tf::error("Caught {}: {}  [{}:{}]", e.className(), e.message(), e.fileName(), e.lineNumber());
+        tSystemError("Caught {}: {}  [{}:{}]", e.className(), e.message(), e.fileName(), e.lineNumber());
         closeSocket();
         accessLogger.setResponseBytes(0);
         accessLogger.setStatusCode(Tf::InternalServerError);
     } catch (std::exception &e) {
-        tError("Caught Exception: %s", e.what());
-        tSystemError("Caught Exception: %s", e.what());
+        Tf::error("Caught Exception: {}", e.what());
+        tSystemError("Caught Exception: {}", e.what());
         closeSocket();
         accessLogger.setResponseBytes(0);
         accessLogger.setStatusCode(Tf::InternalServerError);
@@ -294,7 +292,7 @@ void TActionContext::flushResponse(TActionController *controller, bool immediate
         return maxagestr.toInt();
     }());
 
-    if (!controller || controller->_rendered != TActionController::RenderState::Rendered) {
+    if (!controller) {
         return;
     }
 
@@ -374,7 +372,7 @@ void TActionContext::flushResponse(TActionController *controller, bool immediate
             } break;
 
             default:
-                tSystemError("Invalid logic  [%s:%d]", __FILE__, __LINE__);
+                tSystemError("Invalid logic  [{}:{}]", __FILE__, __LINE__);
                 break;
             }
         }
@@ -385,29 +383,26 @@ void TActionContext::flushResponse(TActionController *controller, bool immediate
     QByteArray ctype = controller->_response.header().contentType().toLower();
     if (ctype.startsWith("text") && !ctype.contains("charset")) {
         ctype += "; charset=";
-#if QT_VERSION < 0x060000
-        ctype += Tf::app()->codecForHttpOutput()->name();
-#else
         ctype += QStringConverter::nameForEncoding(Tf::app()->encodingForHttpOutput());
-#endif
         controller->_response.header().setContentType(ctype);
     }
 
     // Sets the default status code of HTTP response
-    int bytes = 0;
+    int responseBytes = 0;
     if (Q_UNLIKELY(controller->_response.isBodyNull())) {
-        accessLogger.setStatusCode(Tf::NotFound);
         THttpResponseHeader header;
-        bytes = writeResponse(Tf::NotFound, header);
+        responseBytes = writeResponse(Tf::NotFound, header);
+        accessLogger.setStatusCode(header.statusCode());
+
     } else {
-        accessLogger.setStatusCode(controller->statusCode());
         controller->_response.header().setStatusLine(controller->statusCode(), THttpUtility::getResponseReasonPhrase(controller->statusCode()));
 
         // Writes a response and access log
         int64_t bodyLength = (controller->_response.header().contentLength() > 0) ? controller->_response.header().contentLength() : controller->response().bodyLength();
-        bytes = writeResponse(controller->_response.header(), controller->_response.bodyIODevice(), bodyLength);
+        responseBytes = writeResponse(controller->_response.header(), controller->_response.bodyIODevice(), bodyLength);
+        accessLogger.setStatusCode(controller->statusCode());
     }
-    accessLogger.setResponseBytes(bytes);
+    accessLogger.setResponseBytes(responseBytes);
 
     if (immediate) {
         flushSocket();
@@ -462,7 +457,7 @@ int64_t TActionContext::writeResponse(THttpResponseHeader &header, QIODevice *bo
 {
 
     header.setContentLength(length);
-    tSystemDebug("content-length: %ld", (int64_t)header.contentLength());
+    tSystemDebug("content-length: {}", (qint64)header.contentLength());
     header.setRawHeader(QByteArrayLiteral("Server"), QByteArrayLiteral("TreeFrog server"));
     header.setCurrentDate();
 

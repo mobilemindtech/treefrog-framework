@@ -21,9 +21,7 @@
 #include <cstdlib>
 #include <cstdio>
 #include <glog/logging.h>
-#if QT_VERSION < 0x060000
-# include <QTextCodec>
-#endif
+
 
 constexpr auto DEBUG_MODE_OPTION = "--debug";
 constexpr auto SOCKET_OPTION = "-s";
@@ -38,16 +36,16 @@ void messageOutput(QtMsgType type, const QMessageLogContext &context, const QStr
     QByteArray msg = message.toLocal8Bit();
     switch (type) {
     case QtFatalMsg:
-        tFatal("%s (%s:%u %s)", msg.constData(), context.file, context.line, context.function);
+        Tf::fatal("{} ({}:{} {})", msg.constData(), context.file, context.line, context.function);
         break;
     case QtCriticalMsg:
-        tError("%s (%s:%u %s)", msg.constData(), context.file, context.line, context.function);
+        Tf::error("{} ({}:{} {})", msg.constData(), context.file, context.line, context.function);
         break;
     case QtWarningMsg:
-        tWarn("%s (%s:%u %s)", msg.constData(), context.file, context.line, context.function);
+        Tf::warn("{} ({}:{} {})", msg.constData(), context.file, context.line, context.function);
         break;
     case QtDebugMsg:
-        tDebug("%s (%s:%u %s)", msg.constData(), context.file, context.line, context.function);
+        Tf::debug("{} ({}:{} {})", msg.constData(), context.file, context.line, context.function);
         break;
     default:
         break;
@@ -58,7 +56,7 @@ void messageOutput(QtMsgType type, const QMessageLogContext &context, const QStr
 #if defined(Q_OS_UNIX) || !defined(TF_NO_DEBUG)
 void writeFailure(const char *data, size_t size)
 {
-    tSystemError("%s", QByteArray(data, size).replace('\n', "").data());
+    tSystemError("{}", (const char *)QByteArray(data, size).replace('\n', "").data());
 }
 #endif
 
@@ -79,22 +77,16 @@ QMap<QString, QString> convertArgs(const QStringList &args)
     return map;
 }
 
-class MethodDefinition : public QMap<int, QByteArray> {
-public:
-    MethodDefinition() :
-        QMap<int, QByteArray>()
-    {
-        insert(TRoute::Match, QByteArray("match   "));
-        insert(TRoute::Get, QByteArray("get     "));
-        insert(TRoute::Head, QByteArray("head    "));
-        insert(TRoute::Post, QByteArray("post    "));
-        insert(TRoute::Options, QByteArray("options "));
-        insert(TRoute::Put, QByteArray("put     "));
-        insert(TRoute::Delete, QByteArray("delete  "));
-        insert(TRoute::Trace, QByteArray("trace   "));
-    }
+const QMap<int, QByteArray> methodDef = {
+    {TRoute::Match, QByteArray("match   ")},
+    {TRoute::Get, QByteArray("get     ")},
+    {TRoute::Head, QByteArray("head    ")},
+    {TRoute::Post, QByteArray("post    ")},
+    {TRoute::Options, QByteArray("options ")},
+    {TRoute::Put, QByteArray("put     ")},
+    {TRoute::Delete, QByteArray("delete  ")},
+    {TRoute::Trace, QByteArray("trace   ")},
 };
-Q_GLOBAL_STATIC(MethodDefinition, methodDef)
 
 
 QByteArray createMethodString(const QString &controllerName, const QMetaMethod &method)
@@ -149,7 +141,7 @@ int showRoutes()
             } else {
                 action = QByteArrayLiteral("(not found)");
             }
-            std::printf("  %s%s  ->  %s\n", methodDef()->value(route.method).data(), qUtf8Printable(path), qUtf8Printable(action));
+            std::printf("  %s%s  ->  %s\n", methodDef.value(route.method).data(), qUtf8Printable(path), qUtf8Printable(action));
         }
         std::printf("\n");
     }
@@ -232,21 +224,15 @@ int main(int argc, char *argv[])
     if (!loc.isEmpty()) {
         QLocale locale(loc);
         QLocale::setDefault(locale);
-        tSystemInfo("Application's default locale: %s", qUtf8Printable(locale.name()));
+        tSystemInfo("Application's default locale: {}", qUtf8Printable(locale.name()));
     }
-
-#if QT_VERSION < 0x060000
-    // Sets codec
-    QTextCodec *codec = webapp.codecForInternal();
-    QTextCodec::setCodecForLocale(codec);
-#endif
 
     if (!webapp.webRootExists()) {
         tSystemError("No such directory");
         std::fprintf(stderr, "No such directory\n");
         goto finish;
     }
-    tSystemDebug("Web Root: %s", qUtf8Printable(webapp.webRootPath()));
+    tSystemDebug("Web Root: {}", qUtf8Printable(webapp.webRootPath()));
 
     if (!webapp.appSettingsFileExists()) {
         tSystemError("Settings file not found");
@@ -271,7 +257,7 @@ int main(int argc, char *argv[])
     {
         int port = (portNumber > 0) ? portNumber : Tf::appSettings()->value(Tf::ListenPort).toInt();
         if (port <= 0 || port > USHRT_MAX) {
-            tSystemError("Invalid port number: %d", port);
+            tSystemError("Invalid port number: {}", port);
             std::fprintf(stderr, "Invalid port number: %d\n", port);
             goto finish;
         }
@@ -286,7 +272,7 @@ int main(int argc, char *argv[])
     }
 
     if (sock <= 0) {
-        tSystemError("Invalid socket descriptor: %d", sock);
+        tSystemError("Invalid socket descriptor: {}", sock);
         std::fprintf(stderr, "Invalid option\n");
         goto finish;
     }
@@ -303,7 +289,7 @@ int main(int argc, char *argv[])
 #ifdef Q_OS_LINUX
         // Sets a listening socket descriptor
         TMultiplexingServer::instantiate(sock);
-        tSystemDebug("Set socket descriptor: %d", sock);
+        tSystemDebug("Set socket descriptor: {}", sock);
         server = TMultiplexingServer::instance();
 #else
         tFatal("Unsupported MPM: epoll");
@@ -347,6 +333,6 @@ finish:
     Tf::releaseSystemLogger();
 
 end:
-    _exit(ret);
+    //_exit(ret);
     return ret;
 }
